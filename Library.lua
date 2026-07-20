@@ -7003,9 +7003,9 @@ function Library:CreateWindow(WindowInfo)
             Position = UDim2.fromScale(0, 0),
             Size = UDim2.fromScale(1, 1),
             ScaleType = Enum.ScaleType.Stretch,
-            ZIndex = 999,
+            ZIndex = 0,
             BackgroundTransparency = 1,
-            ImageTransparency = 0.75,
+            ImageTransparency = 0,
             Visible = WindowInfo.BackgroundImage and true or false,
             Parent = MainFrame,
         })
