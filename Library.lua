@@ -198,6 +198,7 @@ local Library = {
     ActiveDialog = nil,
 
     Corners = {},
+    BackgroundTargets = {},
 
     ToggleKeybind = Enum.KeyCode.RightControl,
     TweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -6852,9 +6853,15 @@ function Library:SetBackgroundImageEnabled(State: boolean)
     self.Scheme.BackgroundImageEnabled = State
     self.Window.BackgroundImage.Visible = State
     if self.Window.BackgroundImage.Image and self.Window.BackgroundImage.Image ~= "" then
-        self.Window.MainFrame.BackgroundTransparency = State and 0.5 or 0
+        self.Window.MainFrame.BackgroundTransparency = State and 0.85 or 0
+        for _, target in self.BackgroundTargets do
+            target.BackgroundTransparency = State and 0.15 or 0
+        end
     else
         self.Window.MainFrame.BackgroundTransparency = 0
+        for _, target in self.BackgroundTargets do
+            target.BackgroundTransparency = 0
+        end
     end
     self:UpdateColorsUsingRegistry()
 end
@@ -6865,7 +6872,10 @@ function Library:SetBackgroundImage(Image: string | number)
     self.Scheme.BackgroundImage = Library:GetCustomImage(Image).Url
     self.Window.BackgroundImage.Image = Library:GetCustomImage(Image).Url
     if self.Scheme.BackgroundImageEnabled then
-        self.Window.MainFrame.BackgroundTransparency = 0.5
+        self.Window.MainFrame.BackgroundTransparency = 0.85
+        for _, target in self.BackgroundTargets do
+            target.BackgroundTransparency = 0.15
+        end
     end
     self:UpdateColorsUsingRegistry()
 end
@@ -7213,6 +7223,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 20 + WindowInfo.CornerRadius),
             Parent = MainFrame
         })
+        table.insert(Library.BackgroundTargets, BottomBackground)
         Library:MakeLine(MainFrame, {
             AnchorPoint = Vector2.new(0, 1),
             Position = UDim2.new(0, 0, 1, -20),
@@ -7867,6 +7878,7 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.fromScale(1, 0),
                     Parent = BoxHolder,
                 })
+                table.insert(Library.BackgroundTargets, GroupboxHolder)
                 table.insert(
                     Library.Corners,
                     New("UICorner", {
@@ -8774,6 +8786,7 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.fromScale(1, 0),
                     Parent = BoxHolder,
                 })
+                table.insert(Library.BackgroundTargets, GroupboxHolder)
                 table.insert(
                     Library.Corners,
                     New("UICorner", {
