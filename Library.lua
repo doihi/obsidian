@@ -6851,6 +6851,11 @@ function Library:SetBackgroundImageEnabled(State: boolean)
 
     self.Scheme.BackgroundImageEnabled = State
     self.Window.BackgroundImage.Visible = State
+    if self.Window.BackgroundImage.Image and self.Window.BackgroundImage.Image ~= "" then
+        self.Window.MainFrame.BackgroundTransparency = State and 0.15 or 0
+    else
+        self.Window.MainFrame.BackgroundTransparency = 0
+    end
     self:UpdateColorsUsingRegistry()
 end
 
@@ -6859,6 +6864,9 @@ function Library:SetBackgroundImage(Image: string | number)
     
     self.Scheme.BackgroundImage = Library:GetCustomImage(Image).Url
     self.Window.BackgroundImage.Image = Library:GetCustomImage(Image).Url
+    if self.Scheme.BackgroundImageEnabled then
+        self.Window.MainFrame.BackgroundTransparency = 0.15
+    end
     self:UpdateColorsUsingRegistry()
 end
 
@@ -7309,6 +7317,7 @@ function Library:CreateWindow(WindowInfo)
 
     --// Window Table \\--
     local Window = {
+        MainFrame = MainFrame,
         BackgroundImage = BackgroundImage,
         Glow = Glow,
     }
