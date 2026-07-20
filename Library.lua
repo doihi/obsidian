@@ -6853,9 +6853,9 @@ function Library:SetBackgroundImageEnabled(State: boolean)
     self.Scheme.BackgroundImageEnabled = State
     self.Window.BackgroundImage.Visible = State
     if self.Window.BackgroundImage.Image and self.Window.BackgroundImage.Image ~= "" then
-        self.Window.MainFrame.BackgroundTransparency = State and 0.85 or 0
+        self.Window.MainFrame.BackgroundTransparency = State and 1 or 0
         for _, target in self.BackgroundTargets do
-            target.BackgroundTransparency = State and 0.15 or 0
+            target.BackgroundTransparency = State and 0.5 or 0
         end
     else
         self.Window.MainFrame.BackgroundTransparency = 0
@@ -6872,9 +6872,9 @@ function Library:SetBackgroundImage(Image: string | number)
     self.Scheme.BackgroundImage = Library:GetCustomImage(Image).Url
     self.Window.BackgroundImage.Image = Library:GetCustomImage(Image).Url
     if self.Scheme.BackgroundImageEnabled then
-        self.Window.MainFrame.BackgroundTransparency = 0.85
+        self.Window.MainFrame.BackgroundTransparency = 1
         for _, target in self.BackgroundTargets do
-            target.BackgroundTransparency = 0.15
+            target.BackgroundTransparency = 0.5
         end
     end
     self:UpdateColorsUsingRegistry()
@@ -7317,6 +7317,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, -InitialLeftWidth - 1, 1, -70),
             Parent = MainFrame,
         })
+        table.insert(Library.BackgroundTargets, Container)
         New("UIPadding", {
             PaddingBottom = UDim.new(0, 0),
             PaddingLeft = UDim.new(0, 6),
