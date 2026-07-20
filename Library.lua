@@ -3701,6 +3701,7 @@ do
                 Visible = Button.Visible,
                 Parent = Holder,
             })
+            table.insert(Library.BackgroundTargets, Base)
 
             local Stroke = New("UIStroke", {
                 Color = "OutlineColor",
@@ -4923,6 +4924,7 @@ do
             ZIndex = 2,
             Parent = Holder,
         })
+        table.insert(Library.BackgroundTargets, DisplayContainer)
 
         New("UIPadding", {
             PaddingLeft = UDim.new(0, 8),
@@ -5227,6 +5229,7 @@ do
                     Visible = true,
                     Parent = Holder,
                 })
+                table.insert(Library.BackgroundTargets, Base)
 
                 New("UIStroke", {
                     Color = "OutlineColor",
