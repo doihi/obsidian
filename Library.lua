@@ -7123,6 +7123,7 @@ function Library:CreateWindow(WindowInfo)
         local SnowOverlay = New("Frame", {
             Active = false,
             BackgroundTransparency = 1,
+            ClipsDescendants = true,
             Position = UDim2.fromScale(0, 0),
             Size = UDim2.fromScale(1, 1),
             ZIndex = 0,
