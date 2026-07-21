@@ -1196,11 +1196,11 @@ local function New(ClassName: string, Properties: { [string]: any }): any
             return Properties.Parent.ZIndex
         end)
         if tz and ok then
-            Instance.ZIndex = math.max(tz, pz)
+            pcall(function() Instance.ZIndex = math.max(tz, pz) end)
         elseif tz then
-            Instance.ZIndex = tz
+            pcall(function() Instance.ZIndex = tz end)
         elseif ok then
-            Instance.ZIndex = pz
+            pcall(function() Instance.ZIndex = pz end)
         end
     end
 
@@ -6952,16 +6952,19 @@ function Library:SetSnowEnabled(State: boolean)
         return
     end
 
+    for _, child in overlay:GetChildren() do
+        child:Destroy()
+    end
+
     overlay.Visible = true
     task.wait(0.1)
-    local w = math.max(overlay.AbsoluteSize.X, 800)
-    local h = math.max(overlay.AbsoluteSize.Y, 600)
 
     for _ = 1, 100 do
         local flake = Instance.new("Frame")
         flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         flake.BackgroundTransparency = 0
         flake.BorderSizePixel = 0
+        flake.ZIndex = 2
         flake.Parent = overlay
 
         local sizeV = math.random(12, 30)
@@ -6972,12 +6975,13 @@ function Library:SetSnowEnabled(State: boolean)
 
         local function schedule()
             if not flake or not flake.Parent then return end
-            local sx = math.random(0, w)
-            local sy = math.random(-h, -sizeV)
-            local targetY = h + 10
+            local aw = math.max(overlay.AbsoluteSize.X, 800)
+            local ah = math.max(overlay.AbsoluteSize.Y, 600)
+            local sx = math.random(0, aw)
+            local sy = math.random(-ah, -sizeV)
             flake.Position = UDim2.fromOffset(sx, sy)
             local t = game:GetService("TweenService"):Create(flake,
-                TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = UDim2.fromOffset(sx + swayAmt, targetY) })
+                TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = UDim2.fromOffset(sx + swayAmt, ah + 10) })
             t.Completed:Once(schedule)
             t:Play()
         end
