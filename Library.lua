@@ -5041,6 +5041,7 @@ do
             not Library.CornerElements
         )
         Dropdown.Menu = MenuTable
+        table.insert(Library.BackgroundTargets, MenuTable.Menu)
 
         function Dropdown:RecalculateListSize(Count)
             local Y = math.clamp((Count or GetTableSize(Dropdown.Values)) * 21, 0, Info.MaxVisibleDropdownItems * 21)
@@ -7304,6 +7305,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(0, InitialLeftWidth, 1, -70),
             Parent = MainFrame,
         })
+        table.insert(Library.BackgroundTargets, Tabs)
         New("UIListLayout", {
             Parent = Tabs,
         })
