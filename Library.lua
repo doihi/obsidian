@@ -5042,7 +5042,6 @@ do
             not Library.CornerElements
         )
         Dropdown.Menu = MenuTable
-        
 
         function Dropdown:RecalculateListSize(Count)
             local Y = math.clamp((Count or GetTableSize(Dropdown.Values)) * 21, 0, Info.MaxVisibleDropdownItems * 21)
@@ -6925,6 +6924,54 @@ function Library:SetGlow(State: boolean)
     self:UpdateColorsUsingRegistry()
 end
 
+function Library:SetSnowEnabled(State: boolean)
+    assert(typeof(State) == "boolean", "Expected boolean for State, got: " .. typeof(State))
+
+    local overlay = self.SnowOverlay
+    if not overlay then return end
+
+    if not State then
+        overlay.Visible = false
+        for _, child in overlay:GetChildren() do
+            child:Destroy()
+        end
+        return
+    end
+
+    overlay.Visible = true
+    task.wait(0.1)
+    local w = math.max(overlay.AbsoluteSize.X, 800)
+    local h = math.max(overlay.AbsoluteSize.Y, 600)
+
+    for _ = 1, 40 do
+        local flake = Instance.new("Frame")
+        flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        flake.BackgroundTransparency = math.random(0, 3) / 10
+        flake.BorderSizePixel = 0
+        flake.Parent = overlay
+
+        local sizeV = math.random(2, 4)
+        flake.Size = UDim2.fromOffset(sizeV, sizeV)
+
+        local fallSpeed = math.random(3000, 7000)
+        local swayAmt = math.random(-15, 15)
+
+        local function schedule()
+            if not flake or not flake.Parent then return end
+            local sx = math.random(0, w)
+            local sy = math.random(-h, -sizeV)
+            local targetY = h + 10
+            flake.Position = UDim2.fromOffset(sx, sy)
+            local target = UDim2.fromOffset(sx + swayAmt, targetY)
+            local t = game:GetService("TweenService"):Create(flake,
+                TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = target })
+            t.Completed:Once(schedule)
+            t:Play()
+        end
+        schedule()
+    end
+end
+
 function Library:CreateWindow(WindowInfo)
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
     local ViewportSize: Vector2 = workspace.CurrentCamera.ViewportSize
@@ -7072,6 +7119,17 @@ function Library:CreateWindow(WindowInfo)
                 Parent = BackgroundImage,
             })
         )
+
+        local SnowOverlay = New("Frame", {
+            Active = false,
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0, 0),
+            Size = UDim2.fromScale(1, 1),
+            ZIndex = 0,
+            Visible = false,
+            Parent = MainFrame,
+        })
+        Library.SnowOverlay = SnowOverlay
 
         if WindowInfo.Center then
             MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2, 0.5, -MainFrame.Size.Y.Offset / 2)
@@ -7370,6 +7428,7 @@ function Library:CreateWindow(WindowInfo)
     local Window = {
         MainFrame = MainFrame,
         BackgroundImage = BackgroundImage,
+        SnowOverlay = SnowOverlay,
         Glow = Glow,
     }
 
@@ -7390,6 +7449,10 @@ function Library:CreateWindow(WindowInfo)
 
     function Window:SetGlow(State: boolean)
         return Library:SetGlow(State)
+    end
+
+    function Window:SetSnowEnabled(State: boolean)
+        return Library:SetSnowEnabled(State)
     end
 
     function Window:SetFooter(footer: string)
