@@ -7126,7 +7126,7 @@ function Library:CreateWindow(WindowInfo)
             ClipsDescendants = true,
             Position = UDim2.fromScale(0, 0),
             Size = UDim2.fromScale(1, 1),
-            ZIndex = 0,
+            ZIndex = 1,
             Visible = false,
             Parent = MainFrame,
         })
