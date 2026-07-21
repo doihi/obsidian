@@ -6857,6 +6857,15 @@ function Library:SetBackgroundImageEnabled(State: boolean)
     self.Scheme.BackgroundImageEnabled = State
     self.Window.BackgroundImage.Visible = State
     if self.Window.BackgroundImage.Image and self.Window.BackgroundImage.Image ~= "" then
+        if State then
+            local bgImage = self.Window.BackgroundImage
+            if bgImage:IsA("ImageLabel") and not bgImage.IsLoaded then
+                local ContentProvider = game:GetService("ContentProvider")
+                ContentProvider:PreloadAsync({ bgImage })
+                bgImage.Loaded:Wait()
+            end
+        end
+
         self.Window.MainFrame.BackgroundTransparency = State and 1 or 0
         for _, target in self.BackgroundTargets do
             target.BackgroundTransparency = State and 0.65 or 0
@@ -6875,10 +6884,27 @@ end
 
 function Library:SetBackgroundImage(Image: string | number)
     assert(typeof(Image) == "string" or typeof(Image) == "number", "Expected string/number for Image, got: " .. typeof(Image))
-    
-    self.Scheme.BackgroundImage = Library:GetCustomImage(Image).Url
-    self.Window.BackgroundImage.Image = Library:GetCustomImage(Image).Url
+
+    local Url = Library:GetCustomImage(Image).Url
+    local bgImage = self.Window.BackgroundImage
+
+    self.Scheme.BackgroundImage = Url
+    bgImage.Image = Url
+
     if self.Scheme.BackgroundImageEnabled then
+        if bgImage:IsA("ImageLabel") then
+            local ContentProvider = game:GetService("ContentProvider")
+            ContentProvider:PreloadAsync({ bgImage })
+
+            if not bgImage.IsLoaded then
+                local loaded
+                loaded = bgImage.Loaded:Connect(function()
+                    loaded:Disconnect()
+                end)
+                bgImage.Loaded:Wait()
+            end
+        end
+
         self.Window.MainFrame.BackgroundTransparency = 1
         for _, target in self.BackgroundTargets do
             target.BackgroundTransparency = 0.65
