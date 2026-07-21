@@ -283,15 +283,18 @@ local Templates = {
     ImageButton = {
         AutoButtonColor = false,
         BorderSizePixel = 0,
+        ZIndex = 3,
     },
     ScrollingFrame = {
         BorderSizePixel = 0,
+        ZIndex = 3,
     },
     TextLabel = {
         BorderSizePixel = 0,
         FontFace = "Font",
         RichText = true,
         TextColor3 = "FontColor",
+        ZIndex = 3,
     },
     TextButton = {
         AutoButtonColor = false,
@@ -299,6 +302,7 @@ local Templates = {
         FontFace = "Font",
         RichText = true,
         TextColor3 = "FontColor",
+        ZIndex = 3,
     },
     TextBox = {
         BorderSizePixel = 0,
@@ -309,6 +313,7 @@ local Templates = {
         end,
         Text = "",
         TextColor3 = "FontColor",
+        ZIndex = 3,
     },
     UIListLayout = {
         SortOrder = Enum.SortOrder.LayoutOrder,
@@ -1185,9 +1190,18 @@ local function New(ClassName: string, Properties: { [string]: any }): any
     FillInstance(Properties, Instance)
 
     if Properties["Parent"] and not Properties["ZIndex"] then
-        pcall(function()
-            Instance.ZIndex = Properties.Parent.ZIndex
+        local template = Templates[ClassName]
+        local tz = template and template.ZIndex
+        local ok, pz = pcall(function()
+            return Properties.Parent.ZIndex
         end)
+        if tz and ok then
+            Instance.ZIndex = math.max(tz, pz)
+        elseif tz then
+            Instance.ZIndex = tz
+        elseif ok then
+            Instance.ZIndex = pz
+        end
     end
 
     return Instance
@@ -6943,31 +6957,27 @@ function Library:SetSnowEnabled(State: boolean)
     local w = math.max(overlay.AbsoluteSize.X, 800)
     local h = math.max(overlay.AbsoluteSize.Y, 600)
 
-    for _ = 1, 80 do
-        local flake = Instance.new("ImageLabel")
-        flake.Image = "rbxasset://textures/round.png"
-        flake.BackgroundTransparency = 1
-        flake.ImageColor3 = Color3.fromRGB(255, 255, 255)
-        flake.ImageTransparency = 0.3
+    for _ = 1, 100 do
+        local flake = Instance.new("Frame")
+        flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        flake.BackgroundTransparency = 0
         flake.BorderSizePixel = 0
         flake.Parent = overlay
 
-        local sizeV = math.random(8, 20)
+        local sizeV = math.random(12, 30)
         flake.Size = UDim2.fromOffset(sizeV, sizeV)
 
-        local fallSpeed = math.random(5000, 10000)
-        local swayAmt = math.random(-30, 30)
-        local swayDx = 0
+        local fallSpeed = math.random(6000, 12000)
+        local swayAmt = math.random(-40, 40)
 
         local function schedule()
             if not flake or not flake.Parent then return end
-            swayDx = math.random(-30, 30)
             local sx = math.random(0, w)
             local sy = math.random(-h, -sizeV)
             local targetY = h + 10
             flake.Position = UDim2.fromOffset(sx, sy)
             local t = game:GetService("TweenService"):Create(flake,
-                TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = UDim2.fromOffset(sx + swayDx, targetY) })
+                TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = UDim2.fromOffset(sx + swayAmt, targetY) })
             t.Completed:Once(schedule)
             t:Play()
         end
@@ -7129,8 +7139,7 @@ function Library:CreateWindow(WindowInfo)
             ClipsDescendants = true,
             Position = UDim2.fromScale(0, 0),
             Size = UDim2.fromScale(1, 1),
-            ZIndex = 1,
-            Visible = false,
+            ZIndex = 2,
             Parent = MainFrame,
         })
         Library.SnowOverlay = SnowOverlay
