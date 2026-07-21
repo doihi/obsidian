@@ -7728,6 +7728,7 @@ function Library:CreateWindow(WindowInfo)
 
         --// Tab Table \\--
         local Tab = {
+            TabButton = TabButton,
             Groupboxes = {},
             Tabboxes = {},
             DependencyGroupboxes = {},
@@ -8333,14 +8334,16 @@ function Library:CreateWindow(WindowInfo)
                 Library.ActiveTab:Hide()
             end
 
+            local bgActive = WindowInfo.BackgroundImageEnabled and WindowInfo.BackgroundImage ~= ""
+
             TweenService:Create(TabButton, Library.TweenInfo, {
-                BackgroundTransparency = 0.85,
+                BackgroundTransparency = bgActive and 0.5 or 0.85,
             }):Play()
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0,
             }):Play()
             TweenService:Create(TabDecoration, Library.TweenInfo, {
-                BackgroundTransparency = 0.4,
+                BackgroundTransparency = bgActive and 0.5 or 0.4,
             }):Play()
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
