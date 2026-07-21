@@ -6945,21 +6945,23 @@ function Library:SetSnowEnabled(State: boolean)
     overlay.Visible = true
     task.wait(0.1)
 
-    for _ = 1, 60 do
-        local flake = Instance.new("ImageLabel")
-        flake.Image = "rbxassetid://5405495745"
-        flake.BackgroundTransparency = 1
-        flake.ImageColor3 = Color3.fromRGB(255, 255, 255)
-        flake.ImageTransparency = math.random(3, 6) / 10
+    for _ = 1, 80 do
+        local flake = Instance.new("Frame")
+        flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        flake.BackgroundTransparency = math.random(3, 6) / 10
         flake.BorderSizePixel = 0
         flake.ZIndex = 100
         flake.Parent = overlay
 
-        local sizeV = math.random(8, 20)
+        local sizeV = math.random(6, 18)
         flake.Size = UDim2.fromOffset(sizeV, sizeV)
 
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = flake
+
         local fallSpeed = math.random(5000, 10000)
-        local swayAmt = math.random(-30, 30)
+        local swayAmt = math.random(-40, 40)
 
         local function schedule()
             if not flake or not flake.Parent then return end
