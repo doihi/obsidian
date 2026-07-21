@@ -5042,7 +5042,7 @@ do
             not Library.CornerElements
         )
         Dropdown.Menu = MenuTable
-        table.insert(Library.BackgroundTargets, MenuTable.Menu)
+        
 
         function Dropdown:RecalculateListSize(Count)
             local Y = math.clamp((Count or GetTableSize(Dropdown.Values)) * 21, 0, Info.MaxVisibleDropdownItems * 21)
