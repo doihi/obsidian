@@ -6945,54 +6945,35 @@ function Library:SetSnowEnabled(State: boolean)
     overlay.Visible = true
     task.wait(0.1)
 
-    for _ = 1, 50 do
+    for _ = 1, 60 do
         local transp = math.random(3, 6) / 10
-        local armLen = math.random(8, 18)
-        local armW = math.random(2, 3)
+        local pw = math.random(14, 26)
+        local ph = math.random(8, 14)
 
-        local container = Instance.new("Frame")
-        container.BackgroundTransparency = 1
-        container.Size = UDim2.fromOffset(armLen * 2 + 4, armLen * 2 + 4)
-        container.ZIndex = 100
-        container.Parent = overlay
+        local flake = Instance.new("Frame")
+        flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        flake.BackgroundTransparency = transp
+        flake.BorderSizePixel = 0
+        flake.Size = UDim2.fromOffset(pw, ph)
+        flake.Rotation = math.random(-30, 30)
+        flake.ZIndex = 100
+        flake.Parent = overlay
 
-        for i = 0, 2 do
-            local arm = Instance.new("Frame")
-            arm.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            arm.BackgroundTransparency = transp
-            arm.BorderSizePixel = 0
-            arm.Size = UDim2.fromOffset(armLen, armW)
-            arm.AnchorPoint = Vector2.new(0.5, 0.5)
-            arm.Position = UDim2.new(0.5, 0, 0.5, 0)
-            arm.Rotation = i * 60
-            arm.ZIndex = 100
-            arm.Parent = container
-        end
-
-        local center = Instance.new("Frame")
-        center.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        center.BackgroundTransparency = math.max(0, transp - 0.2)
-        center.BorderSizePixel = 0
-        center.Size = UDim2.fromOffset(4, 4)
-        center.AnchorPoint = Vector2.new(0.5, 0.5)
-        center.Position = UDim2.new(0.5, 0, 0.5, 0)
-        center.ZIndex = 100
-        center.Parent = container
-        local cc = Instance.new("UICorner")
-        cc.CornerRadius = UDim.new(1, 0)
-        cc.Parent = center
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 4)
+        corner.Parent = flake
 
         local fallSpeed = math.random(6000, 12000)
         local swayAmt = math.random(-30, 30)
 
         local function schedule()
-            if not container or not container.Parent then return end
+            if not flake or not flake.Parent then return end
             local aw = math.max(overlay.AbsoluteSize.X, 800)
             local ah = math.max(overlay.AbsoluteSize.Y, 600)
             local sx = math.random(0, aw)
-            local sy = math.random(-ah, -armLen * 2)
-            container.Position = UDim2.fromOffset(sx, sy)
-            local t = game:GetService("TweenService"):Create(container,
+            local sy = math.random(-ah, -ph)
+            flake.Position = UDim2.fromOffset(sx, sy)
+            local t = game:GetService("TweenService"):Create(flake,
                 TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = UDim2.fromOffset(sx + swayAmt, ah + 10) })
             t.Completed:Once(schedule)
             t:Play()
