@@ -6946,15 +6946,15 @@ function Library:SetSnowEnabled(State: boolean)
     for _ = 1, 40 do
         local flake = Instance.new("Frame")
         flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        flake.BackgroundTransparency = math.random(0, 3) / 10
+        flake.BackgroundTransparency = 0
         flake.BorderSizePixel = 0
         flake.Parent = overlay
 
-        local sizeV = math.random(2, 4)
+        local sizeV = math.random(4, 7)
         flake.Size = UDim2.fromOffset(sizeV, sizeV)
 
-        local fallSpeed = math.random(3000, 7000)
-        local swayAmt = math.random(-15, 15)
+        local fallSpeed = math.random(4000, 8000)
+        local swayAmt = math.random(-20, 20)
 
         local function schedule()
             if not flake or not flake.Parent then return end
