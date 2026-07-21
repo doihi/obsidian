@@ -4424,6 +4424,7 @@ do
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = Holder,
         })
+        table.insert(Library.BackgroundTargets, Box)
 
         New("UIPadding", {
             PaddingBottom = UDim.new(0, 3),
@@ -6868,10 +6869,10 @@ function Library:SetBackgroundImageEnabled(State: boolean)
 
         self.Window.MainFrame.BackgroundTransparency = State and 1 or 0
         for _, target in self.BackgroundTargets do
-            target.BackgroundTransparency = State and 0.65 or 0
+            target.BackgroundTransparency = State and 0.8 or 0
         end
         if self.ActiveTab and self.ActiveTab.TabButton then
-            self.ActiveTab.TabButton.BackgroundTransparency = State and 0.5 or 0.85
+            self.ActiveTab.TabButton.BackgroundTransparency = State and 0.7 or 0.85
         end
     else
         self.Window.MainFrame.BackgroundTransparency = 0
@@ -6907,10 +6908,10 @@ function Library:SetBackgroundImage(Image: string | number)
 
         self.Window.MainFrame.BackgroundTransparency = 1
         for _, target in self.BackgroundTargets do
-            target.BackgroundTransparency = 0.65
+            target.BackgroundTransparency = 0.8
         end
         if self.ActiveTab and self.ActiveTab.TabButton then
-            self.ActiveTab.TabButton.BackgroundTransparency = 0.5
+            self.ActiveTab.TabButton.BackgroundTransparency = 0.7
         end
     end
     self:UpdateColorsUsingRegistry()
@@ -7201,6 +7202,7 @@ function Library:CreateWindow(WindowInfo)
             Visible = not (WindowInfo.DisableSearch or false),
             Parent = RightWrapper,
         })
+        table.insert(Library.BackgroundTargets, SearchBox)
         table.insert(
             Library.Corners,
             New("UICorner", {
@@ -8371,13 +8373,13 @@ function Library:CreateWindow(WindowInfo)
             local bgActive = Library.Scheme.BackgroundImageEnabled and Library.Scheme.BackgroundImage ~= ""
 
             TweenService:Create(TabButton, Library.TweenInfo, {
-                BackgroundTransparency = bgActive and 0.5 or 0.85,
+                BackgroundTransparency = bgActive and 0.7 or 0.85,
             }):Play()
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0,
             }):Play()
             TweenService:Create(TabDecoration, Library.TweenInfo, {
-                BackgroundTransparency = bgActive and 0.5 or 0.4,
+                BackgroundTransparency = bgActive and 0.7 or 0.4,
             }):Play()
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
@@ -9460,6 +9462,7 @@ function Library:CreateWindow(WindowInfo)
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Parent = Holder,
             })
+            table.insert(Library.BackgroundTargets, Box)
             New("UIPadding", {
                 PaddingLeft = UDim.new(0, 8),
                 PaddingRight = UDim.new(0, 8),
