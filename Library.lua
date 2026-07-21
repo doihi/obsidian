@@ -6945,35 +6945,41 @@ function Library:SetSnowEnabled(State: boolean)
     overlay.Visible = true
     task.wait(0.1)
 
-    for _ = 1, 60 do
+    for _ = 1, 50 do
         local transp = math.random(3, 6) / 10
-        local pw = math.random(14, 26)
-        local ph = math.random(8, 14)
+        local barLen = math.random(8, 14)
+        local barW = math.random(5, 7)
 
-        local flake = Instance.new("Frame")
-        flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        flake.BackgroundTransparency = transp
-        flake.BorderSizePixel = 0
-        flake.Size = UDim2.fromOffset(pw, ph)
-        flake.Rotation = math.random(-30, 30)
-        flake.ZIndex = 100
-        flake.Parent = overlay
+        local container = Instance.new("Frame")
+        container.BackgroundTransparency = 1
+        container.Size = UDim2.fromOffset(barLen * 2 + 4, barLen * 2 + 4)
+        container.ZIndex = 100
+        container.Parent = overlay
 
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 4)
-        corner.Parent = flake
+        for i = 0, 2 do
+            local bar = Instance.new("Frame")
+            bar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            bar.BackgroundTransparency = transp
+            bar.BorderSizePixel = 0
+            bar.Size = UDim2.fromOffset(barLen, barW)
+            bar.AnchorPoint = Vector2.new(0.5, 0.5)
+            bar.Position = UDim2.new(0.5, 0, 0.5, 0)
+            bar.Rotation = i * 60
+            bar.ZIndex = 100
+            bar.Parent = container
+        end
 
         local fallSpeed = math.random(6000, 12000)
         local swayAmt = math.random(-30, 30)
 
         local function schedule()
-            if not flake or not flake.Parent then return end
+            if not container or not container.Parent then return end
             local aw = math.max(overlay.AbsoluteSize.X, 800)
             local ah = math.max(overlay.AbsoluteSize.Y, 600)
             local sx = math.random(0, aw)
-            local sy = math.random(-ah, -ph)
-            flake.Position = UDim2.fromOffset(sx, sy)
-            local t = game:GetService("TweenService"):Create(flake,
+            local sy = math.random(-ah, -barLen * 2)
+            container.Position = UDim2.fromOffset(sx, sy)
+            local t = game:GetService("TweenService"):Create(container,
                 TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = UDim2.fromOffset(sx + swayAmt, ah + 10) })
             t.Completed:Once(schedule)
             t:Play()
