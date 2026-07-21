@@ -6943,28 +6943,31 @@ function Library:SetSnowEnabled(State: boolean)
     local w = math.max(overlay.AbsoluteSize.X, 800)
     local h = math.max(overlay.AbsoluteSize.Y, 600)
 
-    for _ = 1, 40 do
-        local flake = Instance.new("Frame")
-        flake.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        flake.BackgroundTransparency = 0
+    for _ = 1, 80 do
+        local flake = Instance.new("ImageLabel")
+        flake.Image = "rbxasset://textures/round.png"
+        flake.BackgroundTransparency = 1
+        flake.ImageColor3 = Color3.fromRGB(255, 255, 255)
+        flake.ImageTransparency = 0.3
         flake.BorderSizePixel = 0
         flake.Parent = overlay
 
-        local sizeV = math.random(4, 7)
+        local sizeV = math.random(8, 20)
         flake.Size = UDim2.fromOffset(sizeV, sizeV)
 
-        local fallSpeed = math.random(4000, 8000)
-        local swayAmt = math.random(-20, 20)
+        local fallSpeed = math.random(5000, 10000)
+        local swayAmt = math.random(-30, 30)
+        local swayDx = 0
 
         local function schedule()
             if not flake or not flake.Parent then return end
+            swayDx = math.random(-30, 30)
             local sx = math.random(0, w)
             local sy = math.random(-h, -sizeV)
             local targetY = h + 10
             flake.Position = UDim2.fromOffset(sx, sy)
-            local target = UDim2.fromOffset(sx + swayAmt, targetY)
             local t = game:GetService("TweenService"):Create(flake,
-                TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = target })
+                TweenInfo.new(fallSpeed / 1000, Enum.EasingStyle.Linear), { Position = UDim2.fromOffset(sx + swayDx, targetY) })
             t.Completed:Once(schedule)
             t:Play()
         end
