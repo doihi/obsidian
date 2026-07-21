@@ -6858,7 +6858,10 @@ function Library:SetBackgroundImageEnabled(State: boolean)
     if self.Window.BackgroundImage.Image and self.Window.BackgroundImage.Image ~= "" then
         self.Window.MainFrame.BackgroundTransparency = State and 1 or 0
         for _, target in self.BackgroundTargets do
-            target.BackgroundTransparency = State and 0.5 or 0
+            target.BackgroundTransparency = State and 0.65 or 0
+        end
+        if self.ActiveTab and self.ActiveTab.TabButton then
+            self.ActiveTab.TabButton.BackgroundTransparency = State and 0.5 or 0.85
         end
     else
         self.Window.MainFrame.BackgroundTransparency = 0
@@ -6877,7 +6880,10 @@ function Library:SetBackgroundImage(Image: string | number)
     if self.Scheme.BackgroundImageEnabled then
         self.Window.MainFrame.BackgroundTransparency = 1
         for _, target in self.BackgroundTargets do
-            target.BackgroundTransparency = 0.5
+            target.BackgroundTransparency = 0.65
+        end
+        if self.ActiveTab and self.ActiveTab.TabButton then
+            self.ActiveTab.TabButton.BackgroundTransparency = 0.5
         end
     end
     self:UpdateColorsUsingRegistry()
@@ -8334,7 +8340,7 @@ function Library:CreateWindow(WindowInfo)
                 Library.ActiveTab:Hide()
             end
 
-            local bgActive = WindowInfo.BackgroundImageEnabled and WindowInfo.BackgroundImage ~= ""
+            local bgActive = Library.Scheme.BackgroundImageEnabled and Library.Scheme.BackgroundImage ~= ""
 
             TweenService:Create(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = bgActive and 0.5 or 0.85,
