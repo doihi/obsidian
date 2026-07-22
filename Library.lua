@@ -1294,6 +1294,88 @@ do
         Visible = false,
         Parent = Cursor
     })
+
+    -- Dot cursor (円形)
+    local CursorDot = New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = "WhiteColor",
+        Size = UDim2.fromOffset(8, 8),
+        Visible = false,
+        ZIndex = 11000,
+        Parent = Cursor,
+    })
+    Instance.new("UICorner", CursorDot).CornerRadius = UDim.new(1, 0)
+
+    -- Glow (後方の発光)
+    local CursorDotGlow = New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = "WhiteColor",
+        BackgroundTransparency = 0.5,
+        Size = UDim2.fromOffset(20, 20),
+        Visible = false,
+        ZIndex = 10999,
+        Parent = Cursor,
+    })
+    Instance.new("UICorner", CursorDotGlow).CornerRadius = UDim.new(1, 0)
+
+    -- Library cursor設定
+    Library.CursorStyle = "Crosshair"
+    Library.CursorColor = Color3.fromRGB(255, 255, 255)
+    Library.CursorAnimation = "None"
+    Library.CursorSize = 1
+    Library._cursorGlowPhase = 0
+
+    -- ClickRipple 生成
+    function Library:SpawnRipple(x, y)
+        local ripple = Instance.new("Frame")
+        ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+        ripple.BackgroundTransparency = 1
+        ripple.BorderSizePixel = 0
+        ripple.Position = UDim2.fromOffset(x, y)
+        ripple.Size = UDim2.fromOffset(4, 4)
+        ripple.ZIndex = 11001
+        ripple.Parent = ScreenGui
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = Library.CursorColor
+        stroke.Thickness = 2
+        stroke.Parent = ripple
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = ripple
+
+        local ts = game:GetService("TweenService")
+        local t1 = ts:Create(ripple, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.fromOffset(40, 40),
+        })
+        local t2 = ts:Create(stroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Transparency = 1,
+        })
+        t1.Completed:Connect(function()
+            ripple:Destroy()
+        end)
+        t1:Play()
+        t2:Play()
+    end
+
+    -- クリック検出 (UI表示中のみ)
+    local cursorClickConn
+    local function setupCursorClick()
+        if cursorClickConn then cursorClickConn:Disconnect() end
+        cursorClickConn = UserInputService.InputBegan:Connect(function(input, gp)
+            if gp then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                if Library.Toggled and Library.ShowCustomCursor then
+                    local anim = Library.CursorAnimation
+                    if anim == "ClickRipple" or anim == "Both" then
+                        Library:SpawnRipple(Mouse.X, Mouse.Y)
+                    end
+                end
+            end
+        end)
+    end
+    setupCursorClick()
 end
 
 --// Notification
@@ -3616,6 +3698,17 @@ do
         end
 
         return Label
+    end
+
+    function Funcs:AddColorPicker(Idx, Info)
+        if typeof(Idx) == "table" then
+            Info = Idx
+            Idx = nil
+        end
+        Info = Library:Validate(Info, Templates.ColorPicker)
+        local Label = self:AddLabel(Info.Text or "Color")
+        local Picker = Label:AddColorPicker(Idx, Info)
+        return Picker
     end
 
     function Funcs:AddButton(...)
@@ -10193,6 +10286,45 @@ function Library:CreateWindow(WindowInfo)
 
                 Cursor.Position = UDim2.fromOffset(Mouse.X, Mouse.Y)
                 Cursor.Visible = Library.ShowCustomCursor
+
+                local isDot = Library.CursorStyle == "Dot"
+                local cc = Library.CursorColor
+                local sz = Library.CursorSize
+
+                -- Crosshair elements visibility
+                for _, child in Cursor:GetChildren() do
+                    if child:IsA("Frame") and child ~= CursorDot and child ~= CursorDotGlow then
+                        child.Visible = not isDot
+                    end
+                end
+                CursorCustomImage.Visible = false
+
+                if isDot then
+                    local dotSize = math.floor(8 * sz + 0.5)
+                    local glowSize = math.floor(20 * sz + 0.5)
+                    local dotTransp = 0
+                    local glowTransp = 0.5
+
+                    local anim = Library.CursorAnimation
+                    if anim == "Glow" or anim == "Both" then
+                        Library._cursorGlowPhase = (Library._cursorGlowPhase or 0) + 0.04
+                        local pulse = 0.7 + 0.3 * math.sin(Library._cursorGlowPhase)
+                        glowSize = math.floor(20 * sz * pulse + 0.5)
+                        glowTransp = 0.5 - 0.2 * math.sin(Library._cursorGlowPhase)
+                    end
+
+                    CursorDot.Visible = true
+                    CursorDot.Size = UDim2.fromOffset(dotSize, dotSize)
+                    CursorDot.BackgroundColor3 = cc
+
+                    CursorDotGlow.Visible = true
+                    CursorDotGlow.Size = UDim2.fromOffset(glowSize, glowSize)
+                    CursorDotGlow.BackgroundTransparency = glowTransp
+                    CursorDotGlow.BackgroundColor3 = cc
+                else
+                    CursorDot.Visible = false
+                    CursorDotGlow.Visible = false
+                end
 
                 if not (Library.Toggled and ScreenGui and ScreenGui.Parent) then
                     UserInputService.MouseIconEnabled = OldMouseIconEnabled
