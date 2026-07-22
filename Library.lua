@@ -1249,7 +1249,7 @@ local ModalElement = New("TextButton", {
 })
 
 --// Cursor
-local Cursor, CursorCustomImage
+local Cursor, CursorCustomImage, CursorDot, CursorDotGlow
 do
     Cursor = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1296,7 +1296,7 @@ do
     })
 
     -- Dot cursor (円形)
-    local CursorDot = New("Frame", {
+    CursorDot = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
         Size = UDim2.fromOffset(8, 8),
@@ -1305,9 +1305,15 @@ do
         Parent = Cursor,
     })
     Instance.new("UICorner", CursorDot).CornerRadius = UDim.new(1, 0)
+    local CursorDotStroke = New("UIStroke", {
+        Color = "DarkColor",
+        Thickness = 1.5,
+        Transparency = 0.5,
+        Parent = CursorDot,
+    })
 
     -- Glow (後方の発光)
-    local CursorDotGlow = New("Frame", {
+    CursorDotGlow = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
         BackgroundTransparency = 0.5,
