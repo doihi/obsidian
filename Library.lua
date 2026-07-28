@@ -5830,6 +5830,7 @@ do
         end
 
         local function FocusCamera()
+            if not Viewport.Object or not Viewport.Camera then return end
             local ModelSize = GetModelSize(Viewport.Object)
             local MaxExtent = math.max(ModelSize.X, ModelSize.Y, ModelSize.Z)
             local CameraDistance = MaxExtent * 2
@@ -5938,8 +5939,11 @@ do
                 local MouseDelta = input.Position - LastMousePos
                 LastMousePos = input.Position
 
-                local Position = Viewport.Object:GetPivot().Position
+                local Object = Viewport.Object
                 local Camera = Viewport.Camera
+                if not Object or not Camera then return end
+
+                local Position = Object:GetPivot().Position
 
                 local RotationY = CFrame.fromAxisAngle(Vector3.new(0, 1, 0), -MouseDelta.X * 0.01)
                 Camera.CFrame = CFrame.new(Position) * RotationY * CFrame.new(-Position) * Camera.CFrame
@@ -5960,7 +5964,9 @@ do
 
             if input.UserInputType == Enum.UserInputType.MouseWheel then
                 local ZoomAmount = input.Position.Z * 2
-                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * ZoomAmount
+                if Viewport.Camera then
+                    Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * ZoomAmount
+                end
             end
         end)
 
@@ -5981,7 +5987,9 @@ do
                 local currentDist = (touchPositions[1] - touchPositions[2]).Magnitude
                 local delta = (currentDist - LastPinchDist) * 0.1
                 LastPinchDist = currentDist
-                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * delta
+                if Viewport.Camera then
+                    Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * delta
+                end
             elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
                 Pinching = false
             end
