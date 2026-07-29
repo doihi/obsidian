@@ -1069,7 +1069,7 @@ type IconModule = {
 
 local FetchIcons, Icons = pcall(function()
     return (loadstring(
-        game:HttpGet("https://upio-github-mirror.pages.dev/source.lua")
+         game:HttpGet("https://gitlab.com/upio/lucide-roblox-direct/-/raw/main/source.lua")
     ) :: () -> IconModule)()
 end)
 
