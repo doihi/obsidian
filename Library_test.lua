@@ -4345,10 +4345,10 @@ do
             SwitchStroke.Transparency = Toggle.Disabled and 0.75 or 0
 
             Switch.BackgroundColor3 = Library.Scheme.MainColor
-            SwitchStroke.Color = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.OutlineColor
+            SwitchStroke.Color = Library.Scheme.OutlineColor
 
             Library.Registry[Switch].BackgroundColor3 = "MainColor"
-            Library.Registry[SwitchStroke].Color = Toggle.Value and "AccentColor" or "OutlineColor"
+            Library.Registry[SwitchStroke].Color = "OutlineColor"
 
             CheckImage.ImageColor3 = Library.Scheme.AccentColor
             Library.Registry[CheckImage].ImageColor3 = "AccentColor"
