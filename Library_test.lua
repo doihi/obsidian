@@ -163,9 +163,11 @@ do
         return success, errorMessage
     end
 
-    for AssetName, _ in CustomImageManagerAssets do
-        CustomImageManager.DownloadAsset(AssetName)
-    end
+    task.spawn(function()
+        for AssetName, _ in CustomImageManagerAssets do
+            task.spawn(CustomImageManager.DownloadAsset, AssetName)
+        end
+    end)
 end
 
 local Library = {
@@ -1067,10 +1069,38 @@ type IconModule = {
     GetAsset: (Name: string) -> Icon?,
 }
 
-local FetchIcons, Icons = pcall(function()
-    return (loadstring(
-        game:HttpGet("https://gitlab.com/upio/lucide-roblox-direct/-/raw/main/source.lua")
-    ) :: () -> IconModule)()
+local FetchIcons = false
+local Icons = nil
+Library._IconReadyCallbacks = {}
+
+task.spawn(function()
+    local Success, Result = pcall(function()
+        return (loadstring(
+            game:HttpGet("https://gitlab.com/upio/lucide-roblox-direct/-/raw/main/source.lua")
+        ) :: () -> IconModule)()
+    end)
+
+    if Success then
+        FetchIcons = true
+        Icons = Result
+
+        -- Re-query all icon variables (closures capture these)
+        local function RefreshIconVars()
+            CheckIcon = Library:GetIcon("check")
+            ArrowIcon = Library:GetIcon("chevron-up")
+            ResizeIcon = Library:GetIcon("move-diagonal-2")
+            KeyIcon = Library:GetIcon("key")
+            MoveIcon = Library:GetIcon("move")
+            FileQuestionMarkIcon = Library:GetIcon("file-question-mark")
+        end
+        RefreshIconVars()
+
+        -- Notify all UI elements waiting for icons
+        for _, Callback in Library._IconReadyCallbacks do
+            pcall(Callback)
+        end
+        Library._IconReadyCallbacks = nil
+    end
 end)
 
 function Library:GetIcon(IconName: string)
@@ -2570,6 +2600,16 @@ do
                 Size = UDim2.new(1, -4, 1, -4),
                 Parent = Checkbox,
             })
+
+            if Library._IconReadyCallbacks then
+                table.insert(Library._IconReadyCallbacks, function()
+                    if not CheckIcon then return end
+                    CheckImage.Image = CheckIcon.Url
+                    CheckImage.ImageRectOffset = CheckIcon.ImageRectOffset
+                    CheckImage.ImageRectSize = CheckIcon.ImageRectSize
+                    KeybindsToggle:Display(KeybindsToggle.Value)
+                end)
+            end
 
             function KeybindsToggle:Display(State)
                 Label.TextTransparency = State and 0 or 0.5
@@ -4117,6 +4157,16 @@ do
             Parent = Checkbox,
         })
 
+        if Library._IconReadyCallbacks then
+            table.insert(Library._IconReadyCallbacks, function()
+                if not CheckIcon then return end
+                CheckImage.Image = CheckIcon.Url
+                CheckImage.ImageRectOffset = CheckIcon.ImageRectOffset
+                CheckImage.ImageRectSize = CheckIcon.ImageRectSize
+                Toggle:Display()
+            end)
+        end
+
         function Toggle:UpdateColors()
             Toggle:Display()
         end
@@ -4332,6 +4382,16 @@ do
             Parent = Switch,
         })
 
+        if Library._IconReadyCallbacks then
+            table.insert(Library._IconReadyCallbacks, function()
+                if not CheckIcon then return end
+                CheckImage.Image = CheckIcon.Url
+                CheckImage.ImageRectOffset = CheckIcon.ImageRectOffset
+                CheckImage.ImageRectSize = CheckIcon.ImageRectSize
+                Toggle:Display()
+            end)
+        end
+
         function Toggle:UpdateColors()
             Toggle:Display()
         end
@@ -4341,17 +4401,17 @@ do
                 return
             end
 
-            Switch.BackgroundTransparency = Toggle.Disabled and 0.75 or 0
+            Switch.BackgroundTransparency = Toggle.Disabled and 0.75 or 1
             SwitchStroke.Transparency = Toggle.Disabled and 0.75 or 0
 
-            Switch.BackgroundColor3 = Library.Scheme.MainColor
+            Switch.BackgroundColor3 = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.MainColor
             SwitchStroke.Color = Library.Scheme.OutlineColor
 
-            Library.Registry[Switch].BackgroundColor3 = "MainColor"
+            Library.Registry[Switch].BackgroundColor3 = Toggle.Value and "AccentColor" or "MainColor"
             Library.Registry[SwitchStroke].Color = "OutlineColor"
 
-            CheckImage.ImageColor3 = Library.Scheme.AccentColor
-            Library.Registry[CheckImage].ImageColor3 = "AccentColor"
+            CheckImage.ImageColor3 = Library.Scheme.FontColor
+            Library.Registry[CheckImage].ImageColor3 = "FontColor"
 
             if Toggle.Disabled then
                 Label.TextTransparency = 0.8
