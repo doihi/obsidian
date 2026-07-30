@@ -2565,6 +2565,7 @@ do
                 ImageRectOffset = CheckIcon and CheckIcon.ImageRectOffset or Vector2.zero,
                 ImageRectSize = CheckIcon and CheckIcon.ImageRectSize or Vector2.zero,
                 ImageTransparency = 1,
+                ScaleType = Enum.ScaleType.Fit,
                 Position = UDim2.fromOffset(2, 2),
                 Size = UDim2.new(1, -4, 1, -4),
                 Parent = Checkbox,
@@ -4110,6 +4111,7 @@ do
             ImageRectOffset = CheckIcon and CheckIcon.ImageRectOffset or Vector2.zero,
             ImageRectSize = CheckIcon and CheckIcon.ImageRectSize or Vector2.zero,
             ImageTransparency = 1,
+            ScaleType = Enum.ScaleType.Fit,
             Position = UDim2.fromOffset(2, 2),
             Size = UDim2.new(1, -4, 1, -4),
             Parent = Checkbox,
@@ -4323,6 +4325,7 @@ do
             ImageRectOffset = CheckIcon and CheckIcon.ImageRectOffset or Vector2.zero,
             ImageRectSize = CheckIcon and CheckIcon.ImageRectSize or Vector2.zero,
             ImageTransparency = 1,
+            ScaleType = Enum.ScaleType.Fit,
             BackgroundTransparency = 1,
             Position = UDim2.fromOffset(2, 2),
             Size = UDim2.new(1, -4, 1, -4),
@@ -4342,10 +4345,10 @@ do
             SwitchStroke.Transparency = Toggle.Disabled and 0.75 or 0
 
             Switch.BackgroundColor3 = Library.Scheme.MainColor
-            SwitchStroke.Color = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.OutlineColor
+            SwitchStroke.Color = Library.Scheme.OutlineColor
 
             Library.Registry[Switch].BackgroundColor3 = "MainColor"
-            Library.Registry[SwitchStroke].Color = Toggle.Value and "AccentColor" or "OutlineColor"
+            Library.Registry[SwitchStroke].Color = "OutlineColor"
 
             CheckImage.ImageColor3 = Library.Scheme.AccentColor
             Library.Registry[CheckImage].ImageColor3 = "AccentColor"
@@ -5043,6 +5046,7 @@ do
 
         local DisplayImage = New("ImageLabel", {
             BackgroundTransparency = 1,
+            ScaleType = Enum.ScaleType.Fit,
             Position = UDim2.fromOffset(-4, 3),
             Size = UDim2.fromOffset(16, 16),
             Image = "",
@@ -5072,6 +5076,7 @@ do
             ImageRectOffset = ArrowIcon and ArrowIcon.ImageRectOffset or Vector2.zero,
             ImageRectSize = ArrowIcon and ArrowIcon.ImageRectSize or Vector2.zero,
             ImageTransparency = 0.5,
+            ScaleType = Enum.ScaleType.Fit,
             Position = UDim2.fromScale(1, 0.5),
             Size = UDim2.fromOffset(16, 16),
             Parent = DisplayContainer,
@@ -7406,6 +7411,7 @@ function Library:CreateWindow(WindowInfo)
                 ImageRectOffset = SearchIcon.ImageRectOffset,
                 ImageRectSize = SearchIcon.ImageRectSize,
                 ImageTransparency = 0.5,
+                ScaleType = Enum.ScaleType.Fit,
                 Size = UDim2.fromScale(1, 1),
                 SizeConstraint = Enum.SizeConstraint.RelativeYY,
                 Parent = SearchBox,
@@ -7419,6 +7425,7 @@ function Library:CreateWindow(WindowInfo)
                 ImageColor3 = "OutlineColor",
                 ImageRectOffset = MoveIcon.ImageRectOffset,
                 ImageRectSize = MoveIcon.ImageRectSize,
+                ScaleType = Enum.ScaleType.Fit,
                 Position = UDim2.new(1, -10, 0.5, 0),
                 Size = UDim2.fromOffset(28, 28),
                 SizeConstraint = Enum.SizeConstraint.RelativeYY,
@@ -7493,6 +7500,7 @@ function Library:CreateWindow(WindowInfo)
             ImageRectOffset = ResizeIcon and ResizeIcon.ImageRectOffset or Vector2.zero,
             ImageRectSize = ResizeIcon and ResizeIcon.ImageRectSize or Vector2.zero,
             ImageTransparency = 0.5,
+            ScaleType = Enum.ScaleType.Fit,
             Position = UDim2.fromOffset(2, 2),
             Size = UDim2.new(1, -4, 1, -4),
             Parent = ResizeButton,
@@ -7765,7 +7773,7 @@ function Library:CreateWindow(WindowInfo)
                     ImageRectOffset = Icon.ImageRectOffset,
                     ImageRectSize = Icon.ImageRectSize,
                     ImageTransparency = 0.5,
-                    ScaleType = Enum.ScaleType.Fit,
+                            ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
                     SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = TabButton,
@@ -8157,6 +8165,7 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.fromScale(1, 1),
                     Image = ArrowIcon and ArrowIcon.Url or "",
                     ImageColor3 = "WhiteColor",
+                    ScaleType = Enum.ScaleType.Fit,
                     ImageRectOffset = ArrowIcon and ArrowIcon.ImageRectOffset or Vector2.zero,
                     ImageRectSize = ArrowIcon and ArrowIcon.ImageRectSize or Vector2.zero,
                     Rotation = 180,
@@ -8709,7 +8718,7 @@ function Library:CreateWindow(WindowInfo)
                     ImageRectOffset = Icon.ImageRectOffset,
                     ImageRectSize = Icon.ImageRectSize,
                     ImageTransparency = 0.5,
-                    ScaleType = Enum.ScaleType.Fit,
+                            ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
                     SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = TabButton,
@@ -9067,6 +9076,7 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.fromScale(1, 1),
                     Image = ArrowIcon and ArrowIcon.Url or "",
                     ImageColor3 = "WhiteColor",
+                    ScaleType = Enum.ScaleType.Fit,
                     ImageRectOffset = ArrowIcon and ArrowIcon.ImageRectOffset or Vector2.zero,
                     ImageRectSize = ArrowIcon and ArrowIcon.ImageRectSize or Vector2.zero,
                     Rotation = 180,
@@ -9583,7 +9593,8 @@ function Library:CreateWindow(WindowInfo)
                     ImageRectOffset = Icon.ImageRectOffset,
                     ImageRectSize = Icon.ImageRectSize,
                     ImageTransparency = 0.5,
-                    Size = UDim2.fromScale(1, 1),
+                    ScaleType = Enum.ScaleType.Fit,
+                            Size = UDim2.fromScale(1, 1),
                     SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = TabButton,
                 })
