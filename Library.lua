@@ -4319,7 +4319,7 @@ do
 
         local CheckImage = New("ImageLabel", {
             Image = CheckIcon and CheckIcon.Url or "",
-            ImageColor3 = "FontColor",
+            ImageColor3 = "AccentColor",
             ImageRectOffset = CheckIcon and CheckIcon.ImageRectOffset or Vector2.zero,
             ImageRectSize = CheckIcon and CheckIcon.ImageRectSize or Vector2.zero,
             ImageTransparency = 1,
@@ -4341,11 +4341,14 @@ do
             Switch.BackgroundTransparency = Toggle.Disabled and 0.75 or 0
             SwitchStroke.Transparency = Toggle.Disabled and 0.75 or 0
 
-            Switch.BackgroundColor3 = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.BackgroundColor
+            Switch.BackgroundColor3 = Library.Scheme.MainColor
             SwitchStroke.Color = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.OutlineColor
 
-            Library.Registry[Switch].BackgroundColor3 = Toggle.Value and "AccentColor" or "BackgroundColor"
+            Library.Registry[Switch].BackgroundColor3 = "MainColor"
             Library.Registry[SwitchStroke].Color = Toggle.Value and "AccentColor" or "OutlineColor"
+
+            CheckImage.ImageColor3 = Library.Scheme.AccentColor
+            Library.Registry[CheckImage].ImageColor3 = "AccentColor"
 
             if Toggle.Disabled then
                 Label.TextTransparency = 0.8
