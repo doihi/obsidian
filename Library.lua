@@ -4341,17 +4341,17 @@ do
                 return
             end
 
-            Switch.BackgroundTransparency = Toggle.Disabled and 0.75 or 0
+            Switch.BackgroundTransparency = Toggle.Disabled and 0.75 or (Toggle.Value and 1 or 0)
             SwitchStroke.Transparency = Toggle.Disabled and 0.75 or 0
 
-            Switch.BackgroundColor3 = Library.Scheme.MainColor
+            Switch.BackgroundColor3 = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.MainColor
             SwitchStroke.Color = Library.Scheme.OutlineColor
 
-            Library.Registry[Switch].BackgroundColor3 = "MainColor"
+            Library.Registry[Switch].BackgroundColor3 = Toggle.Value and "AccentColor" or "MainColor"
             Library.Registry[SwitchStroke].Color = "OutlineColor"
 
-            CheckImage.ImageColor3 = Library.Scheme.AccentColor
-            Library.Registry[CheckImage].ImageColor3 = "AccentColor"
+            CheckImage.ImageColor3 = Library.Scheme.FontColor
+            Library.Registry[CheckImage].ImageColor3 = "FontColor"
 
             if Toggle.Disabled then
                 Label.TextTransparency = 0.8
