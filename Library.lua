@@ -4341,7 +4341,7 @@ do
                 return
             end
 
-            Switch.BackgroundTransparency = Toggle.Disabled and 0.75 or (Toggle.Value and 1 or 0)
+            Switch.BackgroundTransparency = Toggle.Disabled and 0.75 or 1
             SwitchStroke.Transparency = Toggle.Disabled and 0.75 or 0
 
             Switch.BackgroundColor3 = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.MainColor
