@@ -1334,13 +1334,14 @@ do
     -- ClickRipple 生成
     function Library:SpawnRipple(x, y)
         local ripple = Instance.new("Frame")
+        ripple.Name = "Ripple"
         ripple.AnchorPoint = Vector2.new(0.5, 0.5)
         ripple.BackgroundTransparency = 1
         ripple.BorderSizePixel = 0
-        ripple.Position = UDim2.fromOffset(x, y)
+        ripple.Position = UDim2.fromScale(0.5, 0.5)
         ripple.Size = UDim2.fromOffset(4, 4)
         ripple.ZIndex = 11001
-        ripple.Parent = ScreenGui
+        ripple.Parent = Cursor
 
         local stroke = Instance.new("UIStroke")
         stroke.Color = Library.CursorColor
@@ -10312,7 +10313,7 @@ function Library:CreateWindow(WindowInfo)
                 Cursor.BackgroundTransparency = isDot and 1 or 0
 
                 for _, child in Cursor:GetChildren() do
-                    if child:IsA("Frame") and child ~= CursorDot and child ~= CursorDotGlow then
+                    if child:IsA("Frame") and child.Name ~= "Ripple" and child ~= CursorDot and child ~= CursorDotGlow then
                         child.Visible = not isDot
                     end
                 end
