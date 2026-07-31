@@ -1369,8 +1369,7 @@ do
     local cursorClickConn
     local function setupCursorClick()
         if cursorClickConn then cursorClickConn:Disconnect() end
-        cursorClickConn = UserInputService.InputBegan:Connect(function(input, gp)
-            if gp then return end
+        cursorClickConn = UserInputService.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
                 if Library.Toggled and Library.ShowCustomCursor then
                     local anim = Library.CursorAnimation
@@ -4321,7 +4320,7 @@ do
 
         local CheckImage = New("ImageLabel", {
             Image = CheckIcon and CheckIcon.Url or "",
-            ImageColor3 = "AccentColor",
+            ImageColor3 = "FontColor",
             ImageRectOffset = CheckIcon and CheckIcon.ImageRectOffset or Vector2.zero,
             ImageRectSize = CheckIcon and CheckIcon.ImageRectSize or Vector2.zero,
             ImageTransparency = 1,
@@ -10310,7 +10309,8 @@ function Library:CreateWindow(WindowInfo)
                 local cc = Library.CursorColor
                 local sz = Library.CursorSize
 
-                -- Crosshair elements visibility
+                Cursor.BackgroundTransparency = isDot and 1 or 0
+
                 for _, child in Cursor:GetChildren() do
                     if child:IsA("Frame") and child ~= CursorDot and child ~= CursorDotGlow then
                         child.Visible = not isDot
