@@ -7345,7 +7345,7 @@ function Library:CreateWindow(WindowInfo)
             Line.BackgroundTransparency = Transparency or 1 - math.clamp(1 - Distance / LinkDistance, 0, 1) * 0.8
         end
 
-        RunService:RenderStepped:Connect(function(DeltaTime)
+        RunService.RenderStepped:Connect(function(DeltaTime)
             if not Library.Toggled or not MainFrame.Visible or not PlexusOverlay.Visible then
                 return
             end
