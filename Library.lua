@@ -328,6 +328,7 @@ local Templates = {
         Center = true,
         Resizable = true,
         Glow = true,
+        Plexus = true,
         SearchbarSize = UDim2.fromScale(1, 1),
         GlobalSearch = false,
         CornerElements = true,
@@ -1299,6 +1300,7 @@ do
     CursorDot = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
+        Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(8, 8),
         Visible = false,
         ZIndex = 11000,
@@ -1317,6 +1319,7 @@ do
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
         BackgroundTransparency = 0.5,
+        Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(20, 20),
         Visible = false,
         ZIndex = 10999,
@@ -4278,7 +4281,8 @@ do
 
         local Label = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, -40, 1, 0),
+            Position = UDim2.fromOffset(24, 0),
+            Size = UDim2.new(1, -64, 1, 0),
             Text = Toggle.Text,
             TextSize = 14,
             TextTransparency = 0.4,
@@ -4294,9 +4298,9 @@ do
         })
 
         local Switch = New("Frame", {
-            AnchorPoint = Vector2.new(1, 0),
+            AnchorPoint = Vector2.new(0, 0),
             BackgroundColor3 = "MainColor",
-            Position = UDim2.fromScale(1, 0),
+            Position = UDim2.fromOffset(0, 0),
             Size = UDim2.fromOffset(18, 18),
             Parent = Button,
         })
@@ -7094,6 +7098,15 @@ function Library:SetSnowEnabled(State: boolean)
     end
 end
 
+function Library:SetPlexusEnabled(State: boolean)
+    assert(typeof(State) == "boolean", "Expected boolean for State, got: " .. typeof(State))
+
+    local overlay = self.PlexusOverlay
+    if not overlay then return end
+
+    overlay.Visible = State
+end
+
 function Library:CreateWindow(WindowInfo)
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
     local ViewportSize: Vector2 = workspace.CurrentCamera.ViewportSize
@@ -7252,6 +7265,155 @@ function Library:CreateWindow(WindowInfo)
             Parent = MainFrame,
         })
         Library.SnowOverlay = SnowOverlay
+
+        --// Plexus Effect \\--
+        local PlexusOverlay = New("Frame", {
+            Active = false,
+            BackgroundTransparency = 1,
+            ClipsDescendants = true,
+            Position = UDim2.fromScale(0, 0),
+            Size = UDim2.fromScale(1, 1),
+            Visible = WindowInfo.Plexus,
+            ZIndex = 99,
+            Parent = MainFrame,
+        })
+
+        local ParticleCount = 50
+        local LinkDistance = 140
+        local MouseLinkDistance = 180
+        local ParticleSpeed = 30
+
+        local Particles = {}
+        for i = 1, ParticleCount do
+            local Dot = New("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 0.2,
+                Position = UDim2.fromOffset(
+                    math.random(0, WindowInfo.Size.X.Offset),
+                    math.random(0, WindowInfo.Size.Y.Offset)
+                ),
+                Size = UDim2.fromOffset(3, 3),
+                ZIndex = 101,
+                Parent = PlexusOverlay,
+            })
+            Instance.new("UICorner", Dot).CornerRadius = UDim.new(1, 0)
+
+            local Angle = math.random() * math.pi * 2
+            local Speed = ParticleSpeed * (0.5 + math.random())
+            Particles[i] = {
+                Dot = Dot,
+                Position = Vector2.new(Dot.Position.X.Offset, Dot.Position.Y.Offset),
+                Velocity = Vector2.new(math.cos(Angle), math.sin(Angle)) * Speed,
+            }
+        end
+
+        local MaxLines = 200
+        local Lines = {}
+        for i = 1, MaxLines do
+            Lines[i] = New("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 1,
+                Size = UDim2.fromOffset(0, 1),
+                Visible = false,
+                ZIndex = 100,
+                Parent = PlexusOverlay,
+            })
+        end
+
+        local MouseLine = New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = "AccentColor",
+            BackgroundTransparency = 1,
+            Size = UDim2.fromOffset(0, 1),
+            Visible = false,
+            ZIndex = 100,
+            Parent = PlexusOverlay,
+        })
+
+        local function DrawLine(Line: Frame, From: Vector2, To: Vector2, Transparency: number?)
+            local Delta = To - From
+            local Distance = Delta.Magnitude
+            Line.Visible = true
+            Line.Size = UDim2.fromOffset(Distance, 1)
+            Line.Position = UDim2.fromOffset(
+                (From.X + To.X) / 2,
+                (From.Y + To.Y) / 2
+            )
+            Line.Rotation = math.deg(math.atan2(Delta.Y, Delta.X))
+            Line.BackgroundTransparency = Transparency or 1 - math.clamp(1 - Distance / LinkDistance, 0, 1) * 0.8
+        end
+
+        RunService:RenderStepped:Connect(function(DeltaTime)
+            if not Library.Toggled or not MainFrame.Visible or not PlexusOverlay.Visible then
+                return
+            end
+
+            local Size = PlexusOverlay.AbsoluteSize
+            if Size.X <= 0 or Size.Y <= 0 then
+                return
+            end
+
+            for _, Particle in Particles do
+                Particle.Position = Particle.Position + Particle.Velocity * DeltaTime
+
+                if Particle.Position.X < 0 or Particle.Position.X > Size.X then
+                    Particle.Velocity = Vector2.new(-Particle.Velocity.X, Particle.Velocity.Y)
+                    Particle.Position = Vector2.new(math.clamp(Particle.Position.X, 0, Size.X), Particle.Position.Y)
+                end
+                if Particle.Position.Y < 0 or Particle.Position.Y > Size.Y then
+                    Particle.Velocity = Vector2.new(Particle.Velocity.X, -Particle.Velocity.Y)
+                    Particle.Position = Vector2.new(Particle.Position.X, math.clamp(Particle.Position.Y, 0, Size.Y))
+                end
+
+                Particle.Dot.Position = UDim2.fromOffset(Particle.Position.X, Particle.Position.Y)
+            end
+
+            local OverlayPos = PlexusOverlay.AbsolutePosition
+            local MousePos = Vector2.new(Mouse.X - OverlayPos.X, Mouse.Y - OverlayPos.Y)
+
+            local LineIndex = 0
+            local PoolFull = false
+            for i = 1, ParticleCount do
+                for j = i + 1, ParticleCount do
+                    local Distance = (Particles[i].Position - Particles[j].Position).Magnitude
+                    if Distance <= LinkDistance then
+                        LineIndex += 1
+                        local Line = Lines[LineIndex]
+                        if not Line then
+                            PoolFull = true
+                            break
+                        end
+                        DrawLine(Line, Particles[i].Position, Particles[j].Position)
+                    end
+                end
+                if PoolFull then
+                    break
+                end
+            end
+
+            for i = LineIndex + 1, MaxLines do
+                Lines[i].Visible = false
+            end
+
+            local Closest = nil
+            local ClosestDist = MouseLinkDistance
+            for _, Particle in Particles do
+                local Distance = (Particle.Position - MousePos).Magnitude
+                if Distance <= ClosestDist then
+                    ClosestDist = Distance
+                    Closest = Particle
+                end
+            end
+            if Closest then
+                DrawLine(MouseLine, Closest.Position, MousePos, 1 - (1 - ClosestDist / MouseLinkDistance) * 0.9)
+            else
+                MouseLine.Visible = false
+            end
+        end)
+
+        Library.PlexusOverlay = PlexusOverlay
 
         if WindowInfo.Center then
             MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2, 0.5, -MainFrame.Size.Y.Offset / 2)
@@ -7554,6 +7716,7 @@ function Library:CreateWindow(WindowInfo)
         MainFrame = MainFrame,
         BackgroundImage = BackgroundImage,
         SnowOverlay = SnowOverlay,
+        PlexusOverlay = PlexusOverlay,
         Glow = Glow,
     }
 
@@ -7578,6 +7741,10 @@ function Library:CreateWindow(WindowInfo)
 
     function Window:SetSnowEnabled(State: boolean)
         return Library:SetSnowEnabled(State)
+    end
+
+    function Window:SetPlexusEnabled(State: boolean)
+        return Library:SetPlexusEnabled(State)
     end
 
     function Window:SetFooter(footer: string)
