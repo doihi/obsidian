@@ -7274,13 +7274,12 @@ function Library:CreateWindow(WindowInfo)
             Position = UDim2.fromScale(0, 0),
             Size = UDim2.fromScale(1, 1),
             Visible = WindowInfo.Plexus,
-            ZIndex = 99,
+            ZIndex = 1,
             Parent = MainFrame,
         })
 
         local ParticleCount = 50
         local LinkDistance = 140
-        local MouseLinkDistance = 180
         local ParticleSpeed = 30
 
         local Particles = {}
@@ -7322,16 +7321,6 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
-        local MouseLine = New("Frame", {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundColor3 = "AccentColor",
-            BackgroundTransparency = 1,
-            Size = UDim2.fromOffset(0, 1),
-            Visible = false,
-            ZIndex = 100,
-            Parent = PlexusOverlay,
-        })
-
         local function DrawLine(Line: Frame, From: Vector2, To: Vector2, Transparency: number?)
             local Delta = To - From
             local Distance = Delta.Magnitude
@@ -7370,9 +7359,6 @@ function Library:CreateWindow(WindowInfo)
                 Particle.Dot.Position = UDim2.fromOffset(Particle.Position.X, Particle.Position.Y)
             end
 
-            local OverlayPos = PlexusOverlay.AbsolutePosition
-            local MousePos = Vector2.new(Mouse.X - OverlayPos.X, Mouse.Y - OverlayPos.Y)
-
             local LineIndex = 0
             local PoolFull = false
             for i = 1, ParticleCount do
@@ -7395,21 +7381,6 @@ function Library:CreateWindow(WindowInfo)
 
             for i = LineIndex + 1, MaxLines do
                 Lines[i].Visible = false
-            end
-
-            local Closest = nil
-            local ClosestDist = MouseLinkDistance
-            for _, Particle in Particles do
-                local Distance = (Particle.Position - MousePos).Magnitude
-                if Distance <= ClosestDist then
-                    ClosestDist = Distance
-                    Closest = Particle
-                end
-            end
-            if Closest then
-                DrawLine(MouseLine, Closest.Position, MousePos, 1 - (1 - ClosestDist / MouseLinkDistance) * 0.9)
-            else
-                MouseLine.Visible = false
             end
         end)
 
