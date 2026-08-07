@@ -1226,32 +1226,15 @@ local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
     SafeParentUI(UI, gethui)
 end
 
-local ScreenGui = New("ScreenGui", {
-    Name = "Obsidian",
-    DisplayOrder = 999,
-    ResetOnSpawn = false,
-    ZIndexBehavior = Enum.ZIndexBehavior.Global,
-})
-ParentUI(ScreenGui)
-Library.ScreenGui = ScreenGui
-
-ScreenGui.DescendantRemoving:Connect(function(Instance)
-    Library:RemoveFromRegistry(Instance)
-end)
-
-local ModalElement = New("TextButton", {
-    BackgroundTransparency = 1,
-    Modal = false,
-    Size = UDim2.fromScale(0, 0),
-    AnchorPoint = Vector2.zero,
-    Text = "",
-    ZIndex = -999,
-    Parent = ScreenGui,
-})
+--// ScreenGui は初期値 nil。CreateWindow / CreateLoading 実行時に CreateMainGui() で初めて作成される。
+--// 元コードは作成前の nil の ScreenGui へ DescendantAdded:Connect(...) を実行して全体が停止していたため、
+--// ここでは何も生成せず、接続も作成直後 (CreateMainGui 内) で行う。
+local ScreenGui: ScreenGui
+local ModalElement
 
 --// Cursor
 local Cursor, CursorCustomImage, CursorDot, CursorDotGlow
-do
+local function CreateCursorElements()
     Cursor = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
@@ -1390,7 +1373,7 @@ end
 --// Notification
 local NotificationArea
 local NotificationList
-do
+local function CreateNotificationArea()
     NotificationArea = New("Frame", {
         AnchorPoint = Vector2.new(1, 0),
         BackgroundTransparency = 1,
@@ -1924,17 +1907,19 @@ function Library:AddDraggableMenu(Name: string)
 end
 
 --// Watermark - Deprecated \\--
-do
-    local WatermarkLabel = Library:AddDraggableLabel("")
-    WatermarkLabel:SetVisible(false)
+--// ScreenGui は CreateMainGui() で作られるため、ラベル生成はここでは行わない
+local WatermarkLabel
 
-    function Library:SetWatermark(Text: string)
-        warn("Watermark is deprecated, please use Library:AddDraggableLabel instead.")
+function Library:SetWatermark(Text: string)
+    warn("Watermark is deprecated, please use Library:AddDraggableLabel instead.")
+    if WatermarkLabel then
         WatermarkLabel:SetText(Text)
     end
+end
 
-    function Library:SetWatermarkVisibility(Visible: boolean)
-        warn("Watermark is deprecated, please use Library:AddDraggableLabel instead.")
+function Library:SetWatermarkVisibility(Visible: boolean)
+    warn("Watermark is deprecated, please use Library:AddDraggableLabel instead.")
+    if WatermarkLabel then
         WatermarkLabel:SetVisible(Visible)
     end
 end
@@ -2114,7 +2099,9 @@ Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input: InputObje
 end))
 
 --// Tooltip \\--
-local TooltipLabel = New("TextLabel", {
+local TooltipLabel
+local function CreateTooltipLabel()
+TooltipLabel = New("TextLabel", {
     Name = "Tooltip",
     AutomaticSize = Enum.AutomaticSize.Y,
     BackgroundColor3 = "BackgroundColor",
@@ -2162,6 +2149,46 @@ TooltipLabel:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
 
     TooltipLabel.Size = UDim2.fromOffset(X + 8)
 end)
+end
+
+--// Main ScreenGui の作成 \\--
+--// ScreenGui は初期値 nil のため、CreateWindow / CreateLoading 実行時にここで初めて生成する。
+--// DescendantRemoving の接続も作成直後に行い、nil の ScreenGui に触れて停止しないようにする。
+local function CreateMainGui()
+    if ScreenGui then
+        return
+    end
+
+    ScreenGui = New("ScreenGui", {
+        Name = "Obsidian",
+        DisplayOrder = 999,
+        ResetOnSpawn = false,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+    })
+    ParentUI(ScreenGui)
+    Library.ScreenGui = ScreenGui
+
+    ScreenGui.DescendantRemoving:Connect(function(Instance)
+        Library:RemoveFromRegistry(Instance)
+    end)
+
+    ModalElement = New("TextButton", {
+        BackgroundTransparency = 1,
+        Modal = false,
+        Size = UDim2.fromScale(0, 0),
+        AnchorPoint = Vector2.zero,
+        Text = "",
+        ZIndex = -999,
+        Parent = ScreenGui,
+    })
+
+    CreateCursorElements()
+    CreateNotificationArea()
+    CreateTooltipLabel()
+
+    WatermarkLabel = Library:AddDraggableLabel("")
+    WatermarkLabel:SetVisible(false)
+end
 
 local CurrentHoverInstance
 function Library:AddTooltip(InfoStr: string, DisabledInfoStr: string, HoverInstance: GuiObject)
@@ -2293,7 +2320,10 @@ function Library:Unload()
 
     if ScreenGui then
         ScreenGui:Destroy()
+        ScreenGui = nil
+        ModalElement = nil
     end
+    Library.ScreenGui = nil
 
     getgenv().Library = nil
 end
@@ -4281,7 +4311,8 @@ do
 
         local Label = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, -40, 1, 0),
+            Position = UDim2.fromOffset(24, 0),
+            Size = UDim2.new(1, -64, 1, 0),
             Text = Toggle.Text,
             TextSize = 14,
             TextTransparency = 0.4,
@@ -4297,9 +4328,9 @@ do
         })
 
         local Switch = New("Frame", {
-            AnchorPoint = Vector2.new(1, 0),
+            AnchorPoint = Vector2.new(0, 0),
             BackgroundColor3 = "MainColor",
-            Position = UDim2.fromScale(1, 0),
+            Position = UDim2.fromOffset(0, 0),
             Size = UDim2.fromOffset(18, 18),
             Parent = Button,
         })
@@ -7107,6 +7138,8 @@ function Library:SetPlexusEnabled(State: boolean)
 end
 
 function Library:CreateWindow(WindowInfo)
+    CreateMainGui()
+
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
     local ViewportSize: Vector2 = workspace.CurrentCamera.ViewportSize
     if RunService:IsStudio() and ViewportSize.X <= 5 and ViewportSize.Y <= 5 then
@@ -7273,13 +7306,12 @@ function Library:CreateWindow(WindowInfo)
             Position = UDim2.fromScale(0, 0),
             Size = UDim2.fromScale(1, 1),
             Visible = WindowInfo.Plexus,
-            ZIndex = 99,
+            ZIndex = 1,
             Parent = MainFrame,
         })
 
         local ParticleCount = 50
         local LinkDistance = 140
-        local MouseLinkDistance = 180
         local ParticleSpeed = 30
 
         local Particles = {}
@@ -7321,16 +7353,6 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
-        local MouseLine = New("Frame", {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundColor3 = "AccentColor",
-            BackgroundTransparency = 1,
-            Size = UDim2.fromOffset(0, 1),
-            Visible = false,
-            ZIndex = 100,
-            Parent = PlexusOverlay,
-        })
-
         local function DrawLine(Line: Frame, From: Vector2, To: Vector2, Transparency: number?)
             local Delta = To - From
             local Distance = Delta.Magnitude
@@ -7344,7 +7366,7 @@ function Library:CreateWindow(WindowInfo)
             Line.BackgroundTransparency = Transparency or 1 - math.clamp(1 - Distance / LinkDistance, 0, 1) * 0.8
         end
 
-        RunService:RenderStepped:Connect(function(DeltaTime)
+        RunService.RenderStepped:Connect(function(DeltaTime)
             if not Library.Toggled or not MainFrame.Visible or not PlexusOverlay.Visible then
                 return
             end
@@ -7369,9 +7391,6 @@ function Library:CreateWindow(WindowInfo)
                 Particle.Dot.Position = UDim2.fromOffset(Particle.Position.X, Particle.Position.Y)
             end
 
-            local OverlayPos = PlexusOverlay.AbsolutePosition
-            local MousePos = Vector2.new(Mouse.X - OverlayPos.X, Mouse.Y - OverlayPos.Y)
-
             local LineIndex = 0
             local PoolFull = false
             for i = 1, ParticleCount do
@@ -7394,21 +7413,6 @@ function Library:CreateWindow(WindowInfo)
 
             for i = LineIndex + 1, MaxLines do
                 Lines[i].Visible = false
-            end
-
-            local Closest = nil
-            local ClosestDist = MouseLinkDistance
-            for _, Particle in Particles do
-                local Distance = (Particle.Position - MousePos).Magnitude
-                if Distance <= ClosestDist then
-                    ClosestDist = Distance
-                    Closest = Particle
-                end
-            end
-            if Closest then
-                DrawLine(MouseLine, Closest.Position, MousePos, 1 - (1 - ClosestDist / MouseLinkDistance) * 0.9)
-            else
-                MouseLine.Visible = false
             end
         end)
 
@@ -10696,6 +10700,8 @@ function Library:CreateWindow(WindowInfo)
 end
 
 function Library:CreateLoading(LoadingInfo)
+    CreateMainGui()
+
     if Library.ActiveLoading then
         warn("Loading GUI already exists, you cannot create multiple Loading GUIs.")
         return Library.ActiveLoading
