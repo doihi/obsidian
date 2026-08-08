@@ -328,7 +328,7 @@ local Templates = {
         Center = true,
         Resizable = true,
         Glow = true,
-        Plexus = true,
+        Plexus = false,
         SearchbarSize = UDim2.fromScale(1, 1),
         GlobalSearch = false,
         CornerElements = true,
@@ -5216,13 +5216,21 @@ do
             local TextWidth = Library:GetTextBounds(Str, Library.Scheme.Font, 14, math.huge)
 
             if TextWidth > MaxWidth then
-                local Base = Str
+                local Low, High = 0, #Str
+                local Best = ""
 
-                repeat
-                    Base = Base:sub(1, #Base - 1)
-                    Str = Base .. "..."
-                    TextWidth = Library:GetTextBounds(Str, Library.Scheme.Font, 14, math.huge)
-                until TextWidth <= MaxWidth or #Base <= 0
+                while Low <= High do
+                    local Mid = math.floor((Low + High) / 2)
+                    local Test = (Mid == 0 and "..." or Str:sub(1, Mid) .. "...")
+                    if Library:GetTextBounds(Test, Library.Scheme.Font, 14, math.huge) <= MaxWidth then
+                        Best = Test
+                        Low = Mid + 1
+                    else
+                        High = Mid - 1
+                    end
+                end
+
+                Str = (Best ~= "" and Best or "...")
             end
 
             DisplayButton.Text = (Str == "" and "---" or Str)
@@ -6823,23 +6831,33 @@ function Library:Notify(...)
         })
     end
 
+    local LastTitleText, LastTitleWidth
+    local LastDescText, LastDescWidth
+
     function Data:Resize()
         local ExtraWidth = BigIconLabel and 32 or 0
         local IconWidth = IconLabel and 21 or 0
+        local BaseWidth = (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24
 
         if Title then
-            local X, Y =
-                Library:GetTextBounds(Title.Text, Title.FontFace, Title.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth - IconWidth)
-            Title.Size = UDim2.fromOffset(X, Y)
-            TitleX = X + IconWidth
-            TitleContainer.Size = UDim2.fromOffset(TitleX, math.max(Y, IconLabel and 16 or 0))
+            local TitleWidth = BaseWidth - ExtraWidth - IconWidth
+            if Title.Text ~= LastTitleText or TitleWidth ~= LastTitleWidth then
+                LastTitleText, LastTitleWidth = Title.Text, TitleWidth
+                local X, Y = Library:GetTextBounds(Title.Text, Title.FontFace, Title.TextSize, TitleWidth)
+                Title.Size = UDim2.fromOffset(X, Y)
+                TitleX = X + IconWidth
+                TitleContainer.Size = UDim2.fromOffset(TitleX, math.max(Y, IconLabel and 16 or 0))
+            end
         end
 
         if Desc then
-            local X, Y =
-                Library:GetTextBounds(Desc.Text, Desc.FontFace, Desc.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth)
-            Desc.Size = UDim2.fromOffset(X, Y)
-            DescX = X
+            local DescWidth = BaseWidth - ExtraWidth
+            if Desc.Text ~= LastDescText or DescWidth ~= LastDescWidth then
+                LastDescText, LastDescWidth = Desc.Text, DescWidth
+                local X, Y = Library:GetTextBounds(Desc.Text, Desc.FontFace, Desc.TextSize, DescWidth)
+                Desc.Size = UDim2.fromOffset(X, Y)
+                DescX = X
+            end
         end
 
         FakeBackground.Size = UDim2.fromOffset(math.max(TitleX, DescX) + 24 + ExtraWidth, 0)
@@ -7334,6 +7352,25 @@ function Library:CreateWindow(WindowInfo)
             Line.BackgroundTransparency = Transparency or 1 - math.clamp(1 - Distance / LinkDistance, 0, 1) * 0.8
         end
 
+        local CellSize = LinkDistance
+        local Grid = {}
+        local GridVersion = 0
+        local LineIndex = 0
+        local PoolFull = false
+
+        local function TryDrawLine(P1, P2)
+            local Distance = (P1.Position - P2.Position).Magnitude
+            if Distance <= LinkDistance then
+                LineIndex += 1
+                local Line = Lines[LineIndex]
+                if Line then
+                    DrawLine(Line, P1.Position, P2.Position)
+                else
+                    PoolFull = true
+                end
+            end
+        end
+
         RunService.RenderStepped:Connect(function(DeltaTime)
             if not Library.Toggled or not MainFrame.Visible or not PlexusOverlay.Visible then
                 return
@@ -7359,23 +7396,70 @@ function Library:CreateWindow(WindowInfo)
                 Particle.Dot.Position = UDim2.fromOffset(Particle.Position.X, Particle.Position.Y)
             end
 
-            local LineIndex = 0
-            local PoolFull = false
-            for i = 1, ParticleCount do
-                for j = i + 1, ParticleCount do
-                    local Distance = (Particles[i].Position - Particles[j].Position).Magnitude
-                    if Distance <= LinkDistance then
-                        LineIndex += 1
-                        local Line = Lines[LineIndex]
-                        if not Line then
-                            PoolFull = true
-                            break
-                        end
-                        DrawLine(Line, Particles[i].Position, Particles[j].Position)
-                    end
+            -- 空間グリッド構築（世代カウンタでセルを再利用、毎フレームのクリア不要）
+            GridVersion += 1
+
+            for I, Particle in ipairs(Particles) do
+                local CX = math.floor(Particle.Position.X / CellSize)
+                local CY = math.floor(Particle.Position.Y / CellSize)
+                local Col = Grid[CX]
+                if not Col then
+                    Col = {}
+                    Grid[CX] = Col
                 end
-                if PoolFull then
-                    break
+                local Cell = Col[CY]
+                if not Cell then
+                    Cell = {}
+                    Col[CY] = Cell
+                end
+                if Cell.Version ~= GridVersion then
+                    table.clear(Cell)
+                    Cell.Version = GridVersion
+                end
+                Cell[#Cell + 1] = I
+            end
+
+            -- 近傍セル（同一セル + 周囲8セル）のみ距離検査
+            LineIndex = 0
+            PoolFull = false
+
+            for CX, Col in Grid do
+                for CY, Cell in Col do
+                    if Cell.Version == GridVersion then
+                        for A = 1, #Cell do
+                            if PoolFull then break end
+                            local I = Cell[A]
+                            local P1 = Particles[I]
+
+                            for B = A + 1, #Cell do
+                                local J = Cell[B]
+                                TryDrawLine(P1, Particles[J])
+                                if PoolFull then break end
+                            end
+
+                            for DX = -1, 1 do
+                                if PoolFull then break end
+                                for DY = -1, 1 do
+                                    if PoolFull then break end
+                                    if DX ~= 0 or DY ~= 0 then
+                                        local NCol = Grid[CX + DX]
+                                        if NCol then
+                                            local NCell = NCol[CY + DY]
+                                            if NCell and NCell.Version == GridVersion then
+                                                for B = 1, #NCell do
+                                                    local J = NCell[B]
+                                                    if J > I then
+                                                        TryDrawLine(P1, Particles[J])
+                                                        if PoolFull then break end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
                 end
             end
 
@@ -10632,8 +10716,16 @@ function Library:CreateWindow(WindowInfo)
     --// Execution \\--
     Window:SetCornerRadius(WindowInfo.CornerRadius)
 
+    local SearchDebounceTask = nil
+
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
-        Library:UpdateSearch(SearchBox.Text)
+        if SearchDebounceTask then
+            task.cancel(SearchDebounceTask)
+        end
+        SearchDebounceTask = task.delay(0.08, function()
+            SearchDebounceTask = nil
+            Library:UpdateSearch(SearchBox.Text)
+        end)
     end)
 
     Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input: InputObject)
