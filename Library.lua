@@ -6691,7 +6691,7 @@ function Library:Notify(...)
 
     local Holder = New("Frame", {
         AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = "MainColor",
+        BackgroundColor3 = "BackgroundColor",
         Position = Library.NotifySide:lower() == "left" and UDim2.new(-1, -8, 0, -2) or UDim2.new(1, 8, 0, -2),
         Size = UDim2.fromScale(1, 1),
         ZIndex = 5,
@@ -6724,6 +6724,8 @@ function Library:Notify(...)
     })
     local OutlineStroke = Library:AddOutline(Holder)
     OutlineStroke.Color = Library.Scheme.AccentColor
+    OutlineStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Outside
+    OutlineStroke.Thickness = 2
     Library.Registry[OutlineStroke].Color = "AccentColor"
 
     local ContentContainer = New("Frame", {
