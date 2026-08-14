@@ -6727,6 +6727,23 @@ function Library:Notify(...)
         OutlineStroke.Color = Library.Scheme.AccentColor
         OutlineStroke.Thickness = 2
         Library:AddToRegistry(OutlineStroke, { Color = "AccentColor" })
+
+        local GlowLayers = {
+            { 3, 0.5 },
+            { 6, 0.7 },
+            { 9, 0.82 },
+            { 12, 0.91 },
+        }
+        for _, Layer in ipairs(GlowLayers) do
+            New("UIStroke", {
+                Color = "AccentColor",
+                Thickness = Layer[1],
+                Transparency = Layer[2],
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Outside,
+                ZIndex = 0,
+                Parent = Holder,
+            })
+        end
     end)
 
     local ContentContainer = New("Frame", {
