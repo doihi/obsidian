@@ -6737,17 +6737,19 @@ function Library:Notify(...)
         Library:AddToRegistry(OutlineStroke, { Color = "AccentColor" })
     end)
 
-    local GlowImage = New("ImageLabel", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(-24, -24),
-        Size = UDim2.new(1, 48, 1, 48),
-        ZIndex = 4,
-        Image = CustomImageManager.GetAsset("GlowSliced"),
-        ImageColor3 = "AccentColor",
-        ScaleType = Enum.ScaleType.Slice,
-        SliceCenter = Rect(28, 28, 100, 100),
-        Parent = FakeBackground,
-    })
+    pcall(function()
+        New("ImageLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(-24, -24),
+            Size = UDim2.new(1, 48, 1, 48),
+            ZIndex = 4,
+            Image = CustomImageManager.GetAsset("GlowSliced") or "rbxassetid://0",
+            ImageColor3 = "AccentColor",
+            ScaleType = Enum.ScaleType.Slice,
+            SliceCenter = Rect(28, 28, 100, 100),
+            Parent = FakeBackground,
+        })
+    end)
 
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
