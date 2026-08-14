@@ -70,6 +70,14 @@ local CustomImageManagerAssets = {
 
         Id = nil,
     },
+
+    GlowSliced = {
+        RobloxId = 0, -- Set to a real Roblox asset id if you also upload it there (getcustomasset is used when available)
+        Path = "Obsidian/custom_assets/glow_texture.png",
+        URL = "https://raw.githubusercontent.com/doihi/obsidian/main/asset/glow_texture.png",
+
+        Id = nil,
+    },
 }
 
 do
@@ -6727,24 +6735,19 @@ function Library:Notify(...)
         OutlineStroke.Color = Library.Scheme.AccentColor
         OutlineStroke.Thickness = 2
         Library:AddToRegistry(OutlineStroke, { Color = "AccentColor" })
-
-        local GlowLayers = {
-            { 3, 0.5 },
-            { 6, 0.7 },
-            { 9, 0.82 },
-            { 12, 0.91 },
-        }
-        for _, Layer in ipairs(GlowLayers) do
-            New("UIStroke", {
-                Color = "AccentColor",
-                Thickness = Layer[1],
-                Transparency = Layer[2],
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Outside,
-                ZIndex = 0,
-                Parent = Holder,
-            })
-        end
     end)
+
+    local GlowImage = New("ImageLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(-24, -24),
+        Size = UDim2.new(1, 48, 1, 48),
+        ZIndex = 4,
+        Image = CustomImageManager.GetAsset("GlowSliced"),
+        ImageColor3 = "AccentColor",
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect(28, 28, 100, 100),
+        Parent = FakeBackground,
+    })
 
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
