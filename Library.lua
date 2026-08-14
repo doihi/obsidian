@@ -6723,10 +6723,11 @@ function Library:Notify(...)
         Parent = Holder,
     })
     local OutlineStroke = Library:AddOutline(Holder)
-    OutlineStroke.Color = Library.Scheme.AccentColor
-    OutlineStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Outside
-    OutlineStroke.Thickness = 2
-    Library.Registry[OutlineStroke].Color = "AccentColor"
+    pcall(function()
+        OutlineStroke.Color = Library.Scheme.AccentColor
+        OutlineStroke.Thickness = 2
+        Library:AddToRegistry(OutlineStroke, { Color = "AccentColor" })
+    end)
 
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
