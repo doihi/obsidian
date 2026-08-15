@@ -72,7 +72,7 @@ local CustomImageManagerAssets = {
     },
 
     GlowSliced = {
-        RobloxId = 0, -- Set to a real Roblox asset id if you also upload it there (getcustomasset is used when available)
+        RobloxId = 9146036312,
         Path = "Obsidian/custom_assets/glow_texture.png",
         URL = "https://raw.githubusercontent.com/doihi/obsidian/main/asset/glow_texture.png",
 
@@ -6730,13 +6730,6 @@ function Library:Notify(...)
         PaddingTop = UDim.new(0, 8),
         Parent = Holder,
     })
-    local OutlineStroke = Library:AddOutline(Holder)
-    pcall(function()
-        OutlineStroke.Color = Library.Scheme.AccentColor
-        OutlineStroke.Thickness = 2
-        Library:AddToRegistry(OutlineStroke, { Color = "AccentColor" })
-    end)
-
     pcall(function()
         New("ImageLabel", {
             BackgroundTransparency = 1,
