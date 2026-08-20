@@ -70,14 +70,6 @@ local CustomImageManagerAssets = {
 
         Id = nil,
     },
-
-    GlowSliced = {
-        RobloxId = 9146036312,
-        Path = "Obsidian/custom_assets/glow_texture.png",
-        URL = "https://raw.githubusercontent.com/doihi/obsidian/main/asset/glow_texture.png",
-
-        Id = nil,
-    },
 }
 
 do
@@ -6730,19 +6722,6 @@ function Library:Notify(...)
         PaddingTop = UDim.new(0, 8),
         Parent = Holder,
     })
-    pcall(function()
-        New("ImageLabel", {
-            BackgroundTransparency = 1,
-            Position = UDim2.fromOffset(-24, -24),
-            Size = UDim2.new(1, 48, 1, 48),
-            ZIndex = 4,
-            Image = CustomImageManager.GetAsset("GlowSliced") or "rbxassetid://0",
-            ImageColor3 = "AccentColor",
-            ScaleType = Enum.ScaleType.Slice,
-            SliceCenter = Rect(28, 28, 100, 100),
-            Parent = FakeBackground,
-        })
-    end)
 
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
