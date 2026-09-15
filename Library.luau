@@ -228,6 +228,9 @@ local Library = {
 
     GroupboxTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     RotatingChevronTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    TabIconSpinInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    SmoothScrollInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    SmoothScrollDistance = 120,
 
     Animations = {
         ToggleWindow = false,
@@ -742,6 +745,47 @@ local function StopTween(Tween: TweenBase, Destroy: boolean?)
     if Destroy == true then
         pcall(Tween.Destroy, Tween)
     end
+end
+
+function Library:ApplySmoothScroll(ScrollingFrame: ScrollingFrame, PixelsPerTick: number?)
+    if typeof(ScrollingFrame) ~= "Instance" then
+        return
+    end
+    if not ScrollingFrame:IsA("ScrollingFrame") then
+        return
+    end
+    if ScrollingFrame:GetAttribute("SmoothScrollApplied") then
+        return
+    end
+    ScrollingFrame:SetAttribute("SmoothScrollApplied", true)
+
+    local Distance = PixelsPerTick or Library.SmoothScrollDistance or 120
+    local ActiveTween: Tween? = nil
+
+    local function SmoothScroll(Delta: number)
+        if not ScrollingFrame.Parent then
+            return
+        end
+
+        local Target = ScrollingFrame.CanvasPosition + Vector2.new(0, Delta)
+        local MaxY = math.max(0, ScrollingFrame.AbsoluteCanvasSize.Y - ScrollingFrame.AbsoluteWindowSize.Y)
+        Target = Vector2.new(Target.X, math.clamp(Target.Y, 0, MaxY))
+
+        if ActiveTween then
+            StopTween(ActiveTween)
+        end
+        ActiveTween = TweenService:Create(ScrollingFrame, Library.SmoothScrollInfo, {
+            CanvasPosition = Target,
+        })
+        ActiveTween:Play()
+    end
+
+    ScrollingFrame.MouseWheelForward:Connect(function()
+        SmoothScroll(-Distance)
+    end)
+    ScrollingFrame.MouseWheelBackward:Connect(function()
+        SmoothScroll(Distance)
+    end)
 end
 
 local function Trim(Text: string)
@@ -1666,6 +1710,12 @@ ScreenGui.DescendantRemoving:Connect(function(Instance)
 
         Library:RemoveFromRegistry(Instance)
     end)
+end)
+
+ScreenGui.DescendantAdded:Connect(function(Descendant)
+    if Descendant:IsA("ScrollingFrame") then
+        Library:ApplySmoothScroll(Descendant)
+    end
 end)
 
 local ModalElement = New("TextButton", {
@@ -12539,6 +12589,16 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:Hover(Hovering)
+            if TabIcon then
+                if Tab._IconSpinTween then
+                    StopTween(Tab._IconSpinTween)
+                end
+                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
+                    Rotation = Hovering and 360 or 0,
+                })
+                Tab._IconSpinTween:Play()
+            end
+
             if Library.ActiveTab == Tab then
                 return
             end
@@ -12992,6 +13052,16 @@ function Library:CreateWindow(WindowInfo)
         function Tab:UpdateCorners() end
 
         function Tab:Hover(Hovering)
+            if TabIcon then
+                if Tab._IconSpinTween then
+                    StopTween(Tab._IconSpinTween)
+                end
+                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
+                    Rotation = Hovering and 360 or 0,
+                })
+                Tab._IconSpinTween:Play()
+            end
+
             if Library.ActiveTab == Tab then
                 return
             end
