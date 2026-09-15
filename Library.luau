@@ -436,11 +436,11 @@ local Templates = {
         TabTransitionTime = 0.22,
         TabSwipeOffset = 26,
         TabSwipeFrom = "bottom",
-        TabButtonsStyle = {
-            Gap = 0,
-            Padding = 0,
-            CornerRadius = 0,
-            Indicator = false,
+          TabButtonsStyle = {
+              Gap = 4,
+              Padding = 6,
+              CornerRadius = 6,
+            Indicator = true,
             IndicatorWidth = 2,
             IndicatorHeight = 20,
         },
