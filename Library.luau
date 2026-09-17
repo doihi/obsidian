@@ -15317,12 +15317,16 @@ function Library:CreateWindow(WindowInfo)
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, -1)
             end,
             Name = "Main",
+            ZIndex = 1,
             Text = "",
             Position = WindowInfo.Position,
             Size = WindowInfo.Size,
             Visible = false,
             Parent = ScreenGui,
         })
+        --// Elements defined outside CreateWindow need this to overlay the window
+        Library.MainFrame = MainFrame
+        Library:RegisterBackgroundTarget(MainFrame)
         table.insert(
             Library.Corners,
             New("UICorner", {
