@@ -19319,6 +19319,7 @@ function Library:CreateWindow(WindowInfo)
 
         function Tab:ToggleExpanded()
             Tab:SetExpanded(not Expanded)
+        end
         local function CreateSubTabBar()
             if SubTabBar then
                 return
