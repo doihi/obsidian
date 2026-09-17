@@ -1459,6 +1459,40 @@ local function ApplySearchToTab(Tab, Search)
         SyncPopOutVisibility(Tabbox)
     end
 
+    --// Recurse into Sub Tabs (they hold their own Groupboxes/Tabboxes)
+    if Tab.SubTabs then
+        local VisibleSubTabs = {}
+
+        for _, SubTab in Tab.SubTabs do
+            local SubVisible
+            if TryFuzzyMatch(SubTab.Name, Search) then
+                --// The Sub Tab itself is the hit, so show all of its contents
+                ResetTab(SubTab)
+                SubVisible = true
+            else
+                SubVisible = ApplySearchToTab(SubTab, Search)
+            end
+            VisibleSubTabs[SubTab] = SubVisible
+            BestScore = math.max(BestScore, FuzzyMatchScore(SubTab.Name, Search))
+
+            SubTab.Button.Visible = SubVisible
+            if SubVisible then
+                HasVisible = true
+            end
+        end
+
+        --// Move off a Sub Tab that has nothing to show
+        local Active = Tab.ActiveSubTab
+        if Active and VisibleSubTabs[Active] == false then
+            for SubTab, SubVisible in VisibleSubTabs do
+                if SubVisible then
+                    SubTab:Show()
+                    break
+                end
+            end
+        end
+    end
+
     return HasVisible, BestScore
 end
 local function ResetTab(Tab)
@@ -1516,6 +1550,13 @@ local function ResetTab(Tab)
         end
         Tabbox.BoxHolder.Visible = true
         SyncPopOutVisibility(Tabbox)
+    end
+
+    if Tab.SubTabs then
+        for _, SubTab in Tab.SubTabs do
+            ResetTab(SubTab)
+            SubTab.Button.Visible = true
+        end
     end
 end
 
@@ -2738,6 +2779,25 @@ end
 --// Animations \\--
 local TransparencyCache = {}
 local ActiveTabTweens = setmetatable({}, { __mode = "k" })
+local SUBTAB_BAR_HEIGHT = 32
+local SUBTAB_IDLE_TRANSPARENCY = 0.4
+local SUBTAB_ICON_SIZE = 16
+local SUBTAB_SLIDE_TWEEN = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+--// Fraction of the chip the underline spans, and its gap above the chip's bottom edge
+local SUBTAB_UNDERLINE_WIDTH = 0.66
+local SUBTAB_UNDERLINE_GAP = 3
+--// Transparency per shadow layer, nearest the chip first
+local SUBTAB_SHADOW_TRANSPARENCY = { 0.55, 0.75 }
+--// Hover squashes the chip slightly; the button itself keeps its size so the row
+--// never reflows, and the underline stays put
+local SUBTAB_HOVER_SCALE = 0.94
+local SUBTAB_HOVER_TWEEN = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+--// Left inset of a sub tab row nested in the sidebar, lining it up under the tab label
+local SUBTAB_SIDEBAR_INDENT = 30
+--// Reserved for the row's icon, kept even when it has none so labels stay aligned
+local SUBTAB_SIDEBAR_ICON_COLUMN = 20
+--// Sub tab content always swipes from the bottom, independent of Library.TabSwipeFrom
+local SUB_TAB_SWIPE_FROM = "bottom"
 
 function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?)
     if type(Tab) ~= "table" or not Tab.Container then
@@ -8562,6 +8622,7 @@ do
         return Input
     end
 
+    --// Ported from white558_Library.lua: AddSlider overhaul (ball/shadow, FormatDisplay/Compact/HideMax) \--
     function Funcs:AddSlider(Idx, Info)
         if self.Destroyed then return nil end
 
@@ -8603,29 +8664,45 @@ do
 
         local Holder = New("Frame", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, Info.Compact and 15 or 33),
+            Size = UDim2.new(
+                1,
+                0,
+                0,
+                Info.Compact and 15 or (22 + SLIDER_BAR_HEIGHT + SLIDER_BALL_MARGIN)
+            ),
             Visible = Slider.Visible,
             Parent = Container,
         })
 
+        --// Label on the left and value on the right, both above the bar
         local SliderLabel
+        local TopRow
         if not Info.Compact then
-            SliderLabel = New("TextLabel", {
+            TopRow = New("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 14),
+                Parent = Holder,
+            })
+
+            SliderLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, -70, 1, 0),
                 Text = Slider.Text,
                 TextSize = 14,
+                TextTruncate = Enum.TextTruncate.AtEnd,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = Holder,
+                Parent = TopRow,
             })
         end
 
         local Bar = New("TextButton", {
             Active = not Slider.Disabled,
             AnchorPoint = Vector2.new(0, 1),
-            BackgroundColor3 = "MainColor",
-            Position = UDim2.fromScale(0, 1),
-            Size = UDim2.new(1, 0, 0, 15),
+            --// Same grey material as the switch track, rather than near black
+            BackgroundColor3 = Info.Compact and "MainColor" or "FontColor",
+            Position = Info.Compact and UDim2.fromScale(0, 1)
+                or UDim2.new(0, 0, 1, -SLIDER_BALL_MARGIN),
+            Size = UDim2.new(1, 0, 0, Info.Compact and 15 or SLIDER_BAR_HEIGHT),
             Text = "",
             Parent = Holder,
         })
@@ -8635,33 +8712,50 @@ do
             Parent = Bar,
         })
 
+        if not Info.Compact then
+            New("UIGradient", {
+                Color = ColorSequence.new(SLIDER_TRACK_GRADIENT_FROM, SLIDER_TRACK_GRADIENT_TO),
+                Parent = Bar,
+            })
+        end
+
+        --// Compact keeps the value inside the bar; otherwise it sits top right
         local DisplayLabel = New("TextLabel", {
+            AnchorPoint = Info.Compact and Vector2.new(0, 0) or Vector2.new(1, 0),
             BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 1),
+            Position = Info.Compact and UDim2.fromScale(0, 0) or UDim2.fromScale(1, 0),
+            Size = Info.Compact and UDim2.fromScale(1, 1) or UDim2.new(0, 70, 1, 0),
             Text = "",
             TextSize = 14,
-            ZIndex = Bar.ZIndex + 2,
-            Parent = Bar,
+            TextTransparency = Info.Compact and 0 or 0.4,
+            TextXAlignment = Info.Compact and Enum.TextXAlignment.Center or Enum.TextXAlignment.Right,
+            ZIndex = Bar.ZIndex + 3,
+            Parent = Info.Compact and Bar or TopRow,
         })
-        New("UIStroke", {
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-            Color = "DarkColor",
-            LineJoinMode = Enum.LineJoinMode.Miter,
-            Parent = DisplayLabel,
-        })
+        if Info.Compact then
+            New("UIStroke", {
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+                Color = "DarkColor",
+                LineJoinMode = Enum.LineJoinMode.Miter,
+                Parent = DisplayLabel,
+            })
+        end
 
         local InputTextBox
         local InputTextBoxStroke
         if Info.AllowRightClickInput then
             InputTextBox = New("TextBox", {
+                AnchorPoint = DisplayLabel.AnchorPoint,
                 BackgroundTransparency = 1,
-                Size = UDim2.fromScale(1, 1),
+                Position = DisplayLabel.Position,
+                Size = DisplayLabel.Size,
                 Text = "",
                 TextSize = 14,
-                ZIndex = Bar.ZIndex + 3,
+                TextXAlignment = DisplayLabel.TextXAlignment,
+                ZIndex = Bar.ZIndex + 4,
                 Visible = false,
                 ClearTextOnFocus = false,
-                Parent = Bar,
+                Parent = DisplayLabel.Parent,
             })
             InputTextBoxStroke = New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
@@ -8678,21 +8772,118 @@ do
             Parent = Bar,
         })
 
+        --// Ball riding the fill edge. Not shown in compact, which has no room.
+        local Ball
+        local BallShadow
+        local BallActive = false
+        if not Info.Compact then
+            --// Roblox strokes sit outside the border, so the inner outline is a
+            --// ring inset by a pixel rather than a stroke on the bar itself
+            local InnerOutline = New("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.new(1, -2, 1, -2),
+                ZIndex = Bar.ZIndex + 2,
+                Parent = Bar,
+            })
+            table.insert(
+                Library.PillCorners,
+                New("UICorner", {
+                    CornerRadius = Library.CornerRadius > 0 and UDim.new(1, 0) or UDim.new(0, 0),
+                    Parent = InnerOutline,
+                })
+            )
+            New("UIStroke", {
+                Color = "DarkColor",
+                Transparency = 0.7,
+                Parent = InnerOutline,
+            })
+
+            BallShadow = New("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundColor3 = "DarkColor",
+                BackgroundTransparency = 0.55,
+                Position = UDim2.new(0, 0, 0.5, 1),
+                Size = UDim2.fromOffset(SLIDER_BALL_SIZE, SLIDER_BALL_SIZE),
+                ZIndex = Bar.ZIndex + 3,
+                Parent = Bar,
+            })
+            table.insert(
+                Library.PillCorners,
+                New("UICorner", {
+                    CornerRadius = Library.CornerRadius > 0 and UDim.new(1, 0) or UDim.new(0, 0),
+                    Parent = BallShadow,
+                })
+            )
+
+            Ball = New("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundColor3 = "FontColor",
+                Position = UDim2.fromScale(0, 0.5),
+                Size = UDim2.fromOffset(SLIDER_BALL_SIZE, SLIDER_BALL_SIZE),
+                ZIndex = Bar.ZIndex + 4,
+                Parent = Bar,
+            })
+            table.insert(
+                Library.PillCorners,
+                New("UICorner", {
+                    CornerRadius = Library.CornerRadius > 0 and UDim.new(1, 0) or UDim.new(0, 0),
+                    Parent = Ball,
+                })
+            )
+            New("UIStroke", {
+                Color = "DarkColor",
+                Transparency = 0.75,
+                Parent = Ball,
+            })
+        end
+
+        --// Pill shaped bar and fill, squaring off with everything else at radius 0
         table.insert(
-            Library.Corners,
+            Library.PillCorners,
             New("UICorner", {
-                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                CornerRadius = Library.CornerRadius > 0 and UDim.new(1, 0) or UDim.new(0, 0),
                 Parent = Bar,
             })
         )
 
         table.insert(
-            Library.Corners,
+            Library.PillCorners,
             New("UICorner", {
-                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                CornerRadius = Library.CornerRadius > 0 and UDim.new(1, 0) or UDim.new(0, 0),
                 Parent = Fill,
             })
         )
+
+        --// Grows the ball while hovered or dragged, per the design note. The fill
+        --// ends at the ball's centre, so it has to travel with it.
+        local function SetBallActive(Active: boolean)
+            if not Ball or BallActive == Active or Slider.Disabled then
+                return
+            end
+
+            BallActive = Active
+
+            local Diameter = Active and SLIDER_BALL_SIZE_ACTIVE or SLIDER_BALL_SIZE
+            local Size = UDim2.fromOffset(Diameter, Diameter)
+
+            local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
+            local Edge = UDim.new(X, (0.5 - X) * Diameter)
+            local Position = UDim2.new(Edge.Scale, Edge.Offset, 0.5, 0)
+
+            TweenService:Create(Ball, SLIDER_BALL_TWEEN, {
+                Size = Size,
+                Position = Position,
+            }):Play()
+            TweenService:Create(BallShadow, SLIDER_BALL_TWEEN, {
+                Size = Size,
+                Position = Position + UDim2.fromOffset(0, 1),
+            }):Play()
+            TweenService:Create(Fill, SLIDER_BALL_TWEEN, {
+                Size = UDim2.new(Edge.Scale, Edge.Offset, 1, 0),
+            }):Play()
+        end
 
         function Slider:UpdateColors()
             if Library.Unloaded then
@@ -8744,7 +8935,24 @@ do
             end
 
             local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
-            Fill.Size = UDim2.fromScale(X, 1)
+
+            if not Ball then
+                Fill.Size = UDim2.fromScale(X, 1)
+                return
+            end
+
+            --// Nudged inward at the ends so the ball never hangs off the bar
+            local Size = BallActive and SLIDER_BALL_SIZE_ACTIVE or SLIDER_BALL_SIZE
+            local Edge = UDim.new(X, (0.5 - X) * Size)
+
+            --// The fill runs to the middle of the ball rather than to the raw
+            --// value, so the ball always covers its rounded cap. Ending them at
+            --// different places leaves a notch between the two at low values.
+            Fill.Size = UDim2.new(Edge.Scale, Edge.Offset, 1, 0)
+
+            local Position = UDim2.new(Edge.Scale, Edge.Offset, 0.5, 0)
+            Ball.Position = Position
+            BallShadow.Position = Position + UDim2.fromOffset(0, 1)
         end
 
         function Slider:OnChanged(Func)
@@ -8777,6 +8985,10 @@ do
         end
 
         function Slider:SetValue(Str)
+            if Slider.Disabled then
+                return
+            end
+
             local Num = tonumber(Str)
             if not Num or Num == Slider.Value then
                 return
@@ -8931,15 +9143,15 @@ do
                 return
             end
 
-            if Library.ActiveTab then
-                for _, Side in Library.ActiveTab.Sides do
-                    Side.ScrollingEnabled = false
-                end
+            for _, Side in Library:GetActiveSides() do
+                Side.ScrollingEnabled = false
             end
 
             if Library.ActiveLoading and Library.ActiveLoading.Sidebar then
                 Library.ActiveLoading.Sidebar.Container.ScrollingEnabled = false
             end
+
+            SetBallActive(true)
 
             while IsDragInput(Input) and not Slider.Destroyed do
                 local Location = Mouse.X
@@ -8956,16 +9168,37 @@ do
                 RunService.RenderStepped:Wait()
             end
 
-            if Library.ActiveTab then
-                for _, Side in Library.ActiveTab.Sides do
-                    Side.ScrollingEnabled = true
-                end
+            for _, Side in Library:GetActiveSides() do
+                Side.ScrollingEnabled = true
             end
 
             if Library.ActiveLoading and Library.ActiveLoading.Sidebar then
                 Library.ActiveLoading.Sidebar.Container.ScrollingEnabled = true
             end
+
+            --// Stay grown if the cursor is still over the bar after the drag
+            SetBallActive(Library:MouseIsOverFrame(Bar, Mouse))
         end))
+
+        if Ball then
+            table.insert(
+                Slider.Connections,
+                Bar.MouseEnter:Connect(function()
+                    SetBallActive(true)
+                end)
+            )
+            table.insert(
+                Slider.Connections,
+                Bar.MouseLeave:Connect(function()
+                    --// A drag that left the bar keeps it grown until the mouse is up
+                    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                        return
+                    end
+
+                    SetBallActive(false)
+                end)
+            )
+        end
 
         if typeof(Slider.Tooltip) == "string" or typeof(Slider.DisabledTooltip) == "string" then
             Slider.TooltipTable = Library:AddTooltip(Slider.Tooltip, Slider.DisabledTooltip, Bar)
@@ -9011,6 +9244,7 @@ do
 
         return Slider
     end
+
 
 local PLAYER_THUMBNAIL_TYPES = {
     headshot = "AvatarHeadShot",
@@ -15045,8 +15279,21 @@ function Library:CreateWindow(WindowInfo)
     local GradientFrame
     local GradientEnabled = false
     local TransparentGUI = false
-    local MiniFrame = nil
+    local Minimized = false
+    local ApplyWindowVisibility
+
+    local MiniFrame
+    local MiniSubtitle
+    local MiniBody
+    local MiniFooterHolder
+    local MiniFooter
+    local MiniLabels = {}
+    local MiniSubtitleExplicit = (WindowInfo.MinimizedSubtitle or "") ~= ""
+    local BackgroundVideoFrame
+    local FullscreenBackdrop
     local FooterLabel
+    local TagsHolder
+    local FooterSegments = {}
     local TopBar
     local WindowSnapConfig = {
         Enabled = WindowInfo.Snapping,
@@ -15150,6 +15397,83 @@ function Library:CreateWindow(WindowInfo)
             )
         end))
 
+        --// Ported from white558: BackgroundVideo + FullscreenBackdrop creation \--
+        local function ResolveVideoId(Video)
+            if typeof(Video) == "number" then
+                return "rbxassetid://" .. tostring(Video)
+            end
+            if typeof(Video) == "string" then
+                if Video:match("^rbxassetid://") or Video:match("^rbxasset://") then
+                    return Video
+                end
+                if tonumber(Video) then
+                    return "rbxassetid://" .. Video
+                end
+                return Video -- http / custom asset path
+            end
+            return nil
+        end
+
+        if WindowInfo.BackgroundVideo then
+            local VideoId = ResolveVideoId(WindowInfo.BackgroundVideo)
+            if VideoId then
+                BackgroundVideoFrame = New("VideoFrame", {
+                    BackgroundTransparency = 1,
+                    Looped = WindowInfo.BackgroundVideoLooped ~= false,
+                    Playing = WindowInfo.BackgroundVideoPlaying ~= false,
+                    Volume = tonumber(WindowInfo.BackgroundVideoVolume) or 0,
+                    Video = VideoId,
+                    ImageTransparency = math.clamp(tonumber(WindowInfo.BackgroundVideoTransparency) or 0.15, 0, 1),
+                    ZIndex = 0,
+                    Size = UDim2.fromScale(1, 1),
+                    Parent = MainFrame,
+                })
+                BackgroundVideoFrame.ZIndex = 0
+            end
+        end
+
+        --// Fullscreen backdrop
+        if WindowInfo.FullscreenBackground then
+            FullscreenBackdrop = New("Frame", {
+                BackgroundColor3 = WindowInfo.FullscreenBackgroundColor or Color3.new(0, 0, 0),
+                BackgroundTransparency = math.clamp(
+                    tonumber(WindowInfo.FullscreenBackgroundTransparency) or 0.35,
+                    0,
+                    1
+                ),
+                Size = UDim2.fromScale(1, 1),
+                ZIndex = -5,
+                Visible = false,
+                Parent = ScreenGui,
+            })
+
+            if WindowInfo.FullscreenBackgroundImage and WindowInfo.FullscreenBackgroundImage ~= "" then
+                local FsIcon = Library:GetCustomIcon(WindowInfo.FullscreenBackgroundImage)
+                local FsImage = New("ImageLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    ImageTransparency = math.clamp(
+                        tonumber(WindowInfo.FullscreenBackgroundImageTransparency) or 0.2,
+                        0,
+                        1
+                    ),
+                    ScaleType = Enum.ScaleType.Crop,
+                    Parent = FullscreenBackdrop,
+                })
+                if FsIcon then
+                    Library:ApplyLucideIcon(FsImage, FsIcon)
+                else
+                    FsImage.Image = tostring(WindowInfo.FullscreenBackgroundImage)
+                end
+            end
+
+            Library:GiveSignal(RunService.RenderStepped:Connect(function()
+                if FullscreenBackdrop then
+                    FullscreenBackdrop.Visible = Library.Toggled == true
+                end
+            end))
+        end
+
         if WindowInfo.Center then
             MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2, 0.5, -MainFrame.Size.Y.Offset / 2)
         end
@@ -15208,6 +15532,21 @@ function Library:CreateWindow(WindowInfo)
             Text = WindowInfo.Title,
             TextSize = 20,
             Parent = TitleHolder,
+        })
+
+        --// Tags holder next to title (AddTag)
+        TagsHolder = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromOffset(0, 20),
+            Parent = TitleHolder,
+        })
+        TagsHolder.Visible = not IsCompact
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 4),
+            Parent = TagsHolder,
         })
 
         --// Top Right Bar \\--
@@ -15333,6 +15672,460 @@ function Library:CreateWindow(WindowInfo)
             Library:ApplyLucideIcon(SearchIconImage, SearchIcon)
         end
 
+        --// Ported from white558: minimize button + minimized card \--
+        --// Minimize: collapses the window to a small card \\--
+        if WindowInfo.Minimizable then
+            local MinimizeIcon = Library:GetIcon("minus")
+
+            --// Sits beside the move icon in the top right, not in the search row
+            local MinimizeButton = New("TextButton", {
+                AnchorPoint = Vector2.new(1, 0.5),
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(1, -44, 0.5, 0),
+                Size = UDim2.fromOffset(24, 24),
+                Text = MinimizeIcon and "" or "—",
+                TextSize = 14,
+                TextTransparency = 0.35,
+                ZIndex = 3,
+                Parent = TopBar,
+            })
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                    Parent = MinimizeButton,
+                })
+            )
+
+            local MinimizeImage
+            if MinimizeIcon then
+                MinimizeImage = New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Image = MinimizeIcon.Url,
+                    ImageColor3 = "FontColor",
+                    ImageRectOffset = MinimizeIcon.ImageRectOffset,
+                    ImageRectSize = MinimizeIcon.ImageRectSize,
+                    ImageTransparency = 0.35,
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(16, 16),
+                    Parent = MinimizeButton,
+                })
+            end
+
+            Library:AddTooltip("Minimize", nil, MinimizeButton)
+            MinimizeButton.MouseEnter:Connect(function()
+                TweenService:Create(MinimizeButton, Library.TweenInfo, { BackgroundTransparency = 0 }):Play()
+                if MinimizeImage then
+                    TweenService:Create(MinimizeImage, Library.TweenInfo, { ImageTransparency = 0 }):Play()
+                end
+            end)
+            MinimizeButton.MouseLeave:Connect(function()
+                TweenService:Create(MinimizeButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+                if MinimizeImage then
+                    TweenService:Create(MinimizeImage, Library.TweenInfo, { ImageTransparency = 0.35 }):Play()
+                end
+            end)
+            MinimizeButton.MouseButton1Click:Connect(function()
+                Library.Window:SetMinimized(true)
+            end)
+
+            --// The minimized card: a header with the icon, title and subtitle, an
+            --// optional body of labels, and the window footer along the bottom.
+            MiniFrame = New("Frame", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundColor3 = function()
+                    return Library:GetBetterColor(Library.Scheme.BackgroundColor, -1)
+                end,
+                Name = "Minimized",
+                Position = WindowInfo.Position,
+                Size = UDim2.fromOffset(WindowInfo.MinimizedWidth, 0),
+                Visible = false,
+                Parent = ScreenGui,
+            })
+            Library:RegisterBackgroundTarget(MiniFrame)
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                    Parent = MiniFrame,
+                })
+            )
+            table.insert(
+                Library.Scales,
+                New("UIScale", {
+                    Parent = MiniFrame,
+                })
+            )
+            Library:AddOutline(MiniFrame)
+
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Vertical,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Parent = MiniFrame,
+            })
+
+            --// Header \\--
+            local MiniHeader = New("Frame", {
+                BackgroundTransparency = 1,
+                LayoutOrder = 0,
+                Size = UDim2.new(1, 0, 0, 46),
+                Parent = MiniFrame,
+            })
+            New("UIPadding", {
+                PaddingLeft = UDim.new(0, 12),
+                PaddingRight = UDim.new(0, 10),
+                Parent = MiniHeader,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                Padding = UDim.new(0, 10),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Parent = MiniHeader,
+            })
+
+            local MiniIconData = WindowInfo.Icon and Library:GetCustomIcon(WindowInfo.Icon) or nil
+            if MiniIconData then
+                --// Rounded badge so the icon reads as an app mark
+                local IconHolder = New("Frame", {
+                    BackgroundColor3 = "MainColor",
+                    LayoutOrder = 0,
+                    Size = UDim2.fromOffset(26, 26),
+                    Parent = MiniHeader,
+                })
+                table.insert(
+                    Library.Corners,
+                    New("UICorner", {
+                        CornerRadius = UDim.new(0, math.max(2, WindowInfo.CornerRadius)),
+                        Parent = IconHolder,
+                    })
+                )
+
+                New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Image = MiniIconData.Url,
+                    ImageRectOffset = MiniIconData.ImageRectOffset,
+                    ImageRectSize = MiniIconData.ImageRectSize,
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(16, 16),
+                    Parent = IconHolder,
+                })
+            end
+
+            --// Title stacked over the subtitle
+            local MiniTitleHolder = New("Frame", {
+                BackgroundTransparency = 1,
+                LayoutOrder = 1,
+                Size = UDim2.new(1, 0, 1, 0),
+                Parent = MiniHeader,
+            })
+            New("UIFlexItem", {
+                FlexMode = Enum.UIFlexMode.Shrink,
+                Parent = MiniTitleHolder,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Vertical,
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Parent = MiniTitleHolder,
+            })
+
+            New("TextLabel", {
+                BackgroundTransparency = 1,
+                LayoutOrder = 0,
+                Size = UDim2.new(1, 0, 0, 17),
+                Text = `<b>{WindowInfo.Title}</b>`,
+                TextSize = 15,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = MiniTitleHolder,
+            })
+
+            MiniSubtitle = New("TextLabel", {
+                BackgroundTransparency = 1,
+                LayoutOrder = 1,
+                Size = UDim2.new(1, 0, 0, 14),
+                Text = WindowInfo.MinimizedSubtitle or "",
+                TextSize = 12,
+                TextTransparency = 0.55,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Visible = (WindowInfo.MinimizedSubtitle or "") ~= "",
+                Parent = MiniTitleHolder,
+            })
+
+            --// Mirror the Enabled Features + Notification bell into the minimized card
+            local function MiniActionButton(Icon, Order, TooltipText, OnClick, FallbackText)
+                local Btn = New("TextButton", {
+                    BackgroundTransparency = 1,
+                    LayoutOrder = Order,
+                    Size = UDim2.fromOffset(22, 22),
+                    Text = Icon and "" or (FallbackText or "?"),
+                    TextColor3 = "FontColor",
+                    TextSize = 15,
+                    TextTransparency = 0.35,
+                    Parent = MiniHeader,
+                })
+                local Img
+                if Icon then
+                    Img = New("ImageLabel", {
+                        AnchorPoint = Vector2.new(0.5, 0.5),
+                        BackgroundTransparency = 1,
+                        Image = Icon.Url,
+                        ImageColor3 = "FontColor",
+                        ImageRectOffset = Icon.ImageRectOffset,
+                        ImageRectSize = Icon.ImageRectSize,
+                        ImageTransparency = 0.35,
+                        Position = UDim2.fromScale(0.5, 0.5),
+                        ScaleType = Enum.ScaleType.Fit,
+                        Size = UDim2.fromOffset(16, 16),
+                        Parent = Btn,
+                    })
+                end
+                Btn.MouseEnter:Connect(function()
+                    TweenService:Create(Btn, Library.TweenInfo, { TextTransparency = 0 }):Play()
+                    if Img then
+                        TweenService:Create(Img, Library.TweenInfo, { ImageTransparency = 0 }):Play()
+                    end
+                end)
+                Btn.MouseLeave:Connect(function()
+                    TweenService:Create(Btn, Library.TweenInfo, { TextTransparency = 0.35 }):Play()
+                    if Img then
+                        TweenService:Create(Img, Library.TweenInfo, { ImageTransparency = 0.35 }):Play()
+                    end
+                end)
+                if TooltipText then
+                    Library:AddTooltip(TooltipText, nil, Btn)
+                end
+                Btn.MouseButton1Click:Connect(OnClick)
+                return Btn
+            end
+
+            local MiniBell = MiniActionButton(
+                Library:GetIcon("bell"),
+                3,
+                "Notification History",
+                function() Library:ToggleNotificationHistory() end,
+                "!"
+            )
+            Library.NotificationBellMini = MiniBell
+
+            do
+                --// Unread badge for the minimized bell
+                local BadgeHolder = New("Frame", {
+                    AnchorPoint = Vector2.new(1, 0),
+                    BackgroundColor3 = "AccentColor",
+                    Position = UDim2.new(1, 2, 0, 0),
+                    Size = UDim2.fromOffset(14, 14),
+                    Visible = false,
+                    ZIndex = 5,
+                    Parent = MiniBell,
+                })
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = BadgeHolder,
+                })
+                local BadgeLabel = New("TextLabel", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    Text = "0",
+                    TextColor3 = "BackgroundColor",
+                    TextSize = 11,
+                    ZIndex = 6,
+                    Parent = BadgeHolder,
+                })
+                New("UIPadding", {
+                    PaddingLeft = UDim.new(0, 2),
+                    PaddingRight = UDim.new(0, 2),
+                    Parent = BadgeLabel,
+                })
+                table.insert(Library.NotificationBadges, { Holder = BadgeHolder, Label = BadgeLabel })
+                Library:UpdateNotificationBadge()
+            end
+
+            local RestoreIcon = Library:GetIcon("chevron-up")
+            local RestoreButton = New("TextButton", {
+                BackgroundTransparency = 1,
+                LayoutOrder = 4,
+                Size = UDim2.fromOffset(22, 22),
+                Text = RestoreIcon and "" or "^",
+                TextSize = 14,
+                TextTransparency = 0.35,
+                Parent = MiniHeader,
+            })
+
+            if RestoreIcon then
+                New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Image = RestoreIcon.Url,
+                    ImageColor3 = "FontColor",
+                    ImageRectOffset = RestoreIcon.ImageRectOffset,
+                    ImageRectSize = RestoreIcon.ImageRectSize,
+                    ImageTransparency = 0.35,
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(16, 16),
+                    Parent = RestoreButton,
+                })
+            end
+
+            Library:AddTooltip("Restore", nil, RestoreButton)
+            RestoreButton.MouseButton1Click:Connect(function()
+                Library.Window:SetMinimized(false)
+            end)
+
+            --// Body: labels the script adds, hidden until there is one \\--
+            MiniBody = New("Frame", {
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                LayoutOrder = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                Visible = false,
+                Parent = MiniFrame,
+            })
+            New("UIPadding", {
+                PaddingBottom = UDim.new(0, 10),
+                PaddingLeft = UDim.new(0, 12),
+                PaddingRight = UDim.new(0, 12),
+                Parent = MiniBody,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Vertical,
+                Padding = UDim.new(0, 4),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Parent = MiniBody,
+            })
+
+            --// Footer \\--
+            MiniFooterHolder = New("Frame", {
+                BackgroundTransparency = 1,
+                LayoutOrder = 2,
+                Size = UDim2.new(1, 0, 0, 26),
+                Parent = MiniFrame,
+            })
+            Library:MakeLine(MiniFooterHolder, {
+                Position = UDim2.fromOffset(0, 0),
+                Size = UDim2.new(1, 0, 0, 1),
+            })
+            New("UIPadding", {
+                PaddingLeft = UDim.new(0, 12),
+                PaddingRight = UDim.new(0, 12),
+                Parent = MiniFooterHolder,
+            })
+
+            MiniFooter = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                Text = "",
+                TextSize = 12,
+                TextTransparency = 0.6,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = MiniFooterHolder,
+            })
+
+            --// Drag by the header, so clicks on the buttons still register
+            Library:MakeDraggable(MiniFrame, MiniHeader, true)
+        end
+        --// Ported from white558: top-bar notification bell with unread badge \--
+        if not WindowInfo.DisableNotificationBell then
+            --// Notification bell: sits left of the minimize/move cluster and
+            --// opens the built-in Notification History, with an unread badge
+            local BellIcon = Library:GetIcon("bell")
+            local BellRightOffset = WindowInfo.Minimizable and 72 or 42
+
+            local BellButton = New("TextButton", {
+                AnchorPoint = Vector2.new(1, 0.5),
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(1, -BellRightOffset, 0.5, 0),
+                Size = UDim2.fromOffset(24, 24),
+                Text = BellIcon and "" or "!",
+                TextSize = 14,
+                TextTransparency = 0.35,
+                ZIndex = 3,
+                Parent = TopBar,
+            })
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                    Parent = BellButton,
+                })
+            )
+
+            local BellImage
+            if BellIcon then
+                BellImage = New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    BackgroundTransparency = 1,
+                    Image = BellIcon.Url,
+                    ImageColor3 = "FontColor",
+                    ImageRectOffset = BellIcon.ImageRectOffset,
+                    ImageRectSize = BellIcon.ImageRectSize,
+                    ImageTransparency = 0.35,
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(16, 16),
+                    ZIndex = 4,
+                    Parent = BellButton,
+                })
+            end
+
+            --// Unread count badge, hidden until there is something unread
+            local BadgeHolder = New("Frame", {
+                AnchorPoint = Vector2.new(1, 0),
+                BackgroundColor3 = "AccentColor",
+                Position = UDim2.new(1, 2, 0, -2),
+                Size = UDim2.fromOffset(14, 14),
+                Visible = false,
+                ZIndex = 5,
+                Parent = BellButton,
+            })
+            New("UICorner", {
+                CornerRadius = UDim.new(1, 0),
+                Parent = BadgeHolder,
+            })
+            local BadgeLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                Text = "0",
+                TextColor3 = "BackgroundColor",
+                TextSize = 11,
+                ZIndex = 6,
+                Parent = BadgeHolder,
+            })
+            New("UIPadding", {
+                PaddingLeft = UDim.new(0, 2),
+                PaddingRight = UDim.new(0, 2),
+                Parent = BadgeHolder,
+            })
+
+            Library.NotificationBadge = { Holder = BadgeHolder, Label = BadgeLabel }
+            table.insert(Library.NotificationBadges, Library.NotificationBadge)
+            Library.NotificationBell = BellButton
+            Library:UpdateNotificationBadge()
+
+            Library:AddTooltip("Notification History", nil, BellButton)
+            BellButton.MouseEnter:Connect(function()
+                TweenService:Create(BellButton, Library.TweenInfo, { BackgroundTransparency = 0 }):Play()
+                if BellImage then
+                    TweenService:Create(BellImage, Library.TweenInfo, { ImageTransparency = 0 }):Play()
+                end
+            end)
+            BellButton.MouseLeave:Connect(function()
+                TweenService:Create(BellButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+                if BellImage then
+                    TweenService:Create(BellImage, Library.TweenInfo, { ImageTransparency = 0.35 }):Play()
+                end
+            end)
+            BellButton.MouseButton1Click:Connect(function()
+                Library:ToggleNotificationHistory()
+            end)
+        end
         if MoveIcon then
             local MoveIconImage = New("ImageLabel", {
                 AnchorPoint = Vector2.new(1, 0.5),
@@ -15376,15 +16169,189 @@ function Library:CreateWindow(WindowInfo)
             })
         )
 
+        --// Ported from white558: segmented footer (FooterHolder + builders) \--
         --// Footer \\-
-        FooterLabel = New("TextLabel", {
+        --// The footer is a row of segments; each one is plain or copyable
+        local FooterHolder = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
-            Text = WindowInfo.Footer,
-            TextSize = 14,
-            TextTransparency = 0.5,
             Parent = BottomBar,
         })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 6),
+            Parent = FooterHolder,
+        })
+
+        local function AddFooterSegment(Info)
+            local Text = tostring(Info.Text or "")
+            --// Copyable is opt in per segment, and impossible without a clipboard
+            local Copyable = Info.Copyable == true and SetClipboard ~= nil
+
+            local Label = New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0, 0, 1, 0),
+                Text = Text,
+                TextColor3 = Copyable and "BlueColor" or "FontColor",
+                TextSize = 14,
+                TextTransparency = Copyable and 0 or 0.5,
+                Parent = FooterHolder,
+            })
+            table.insert(FooterSegments, Label)
+
+            if not Copyable then
+                return Label
+            end
+
+            local CopyValue = tostring(Info.CopyText or Text)
+            local CopyIcon = Library:GetIcon("copy")
+            local CopiedIcon = Library:GetIcon("check")
+
+            local CopyButton = New("TextButton", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                Size = UDim2.fromOffset(18, 18),
+                Text = "",
+                Parent = FooterHolder,
+            })
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                    Parent = CopyButton,
+                })
+            )
+            --// Keeps the glyph off the button's edges no matter the icon set
+            New("UIPadding", {
+                PaddingBottom = UDim.new(0, 3),
+                PaddingLeft = UDim.new(0, 3),
+                PaddingRight = UDim.new(0, 3),
+                PaddingTop = UDim.new(0, 3),
+                Parent = CopyButton,
+            })
+
+            local CopyImage = New("ImageLabel", {
+                Image = CopyIcon and CopyIcon.Url or "",
+                ImageColor3 = "BlueColor",
+                ImageRectOffset = CopyIcon and CopyIcon.ImageRectOffset or Vector2.zero,
+                ImageRectSize = CopyIcon and CopyIcon.ImageRectSize or Vector2.zero,
+                ScaleType = Enum.ScaleType.Fit,
+                Size = UDim2.fromScale(1, 1),
+                Parent = CopyButton,
+            })
+
+            Library:AddTooltip("Copy to clipboard", nil, CopyButton)
+
+            local ResetThread
+            local function Copy()
+                local Success = pcall(SetClipboard, CopyValue)
+                if not Success then
+                    return
+                end
+
+                if CopiedIcon then
+                    CopyImage.Image = CopiedIcon.Url
+                    CopyImage.ImageRectOffset = CopiedIcon.ImageRectOffset
+                    CopyImage.ImageRectSize = CopiedIcon.ImageRectSize
+                end
+
+                if ResetThread then
+                    task.cancel(ResetThread)
+                end
+
+                ResetThread = task.delay(1.5, function()
+                    ResetThread = nil
+
+                    if CopyIcon then
+                        CopyImage.Image = CopyIcon.Url
+                        CopyImage.ImageRectOffset = CopyIcon.ImageRectOffset
+                        CopyImage.ImageRectSize = CopyIcon.ImageRectSize
+                    end
+                end)
+            end
+
+            CopyButton.MouseButton1Click:Connect(Copy)
+            CopyButton.MouseEnter:Connect(function()
+                TweenService:Create(CopyButton, Library.TweenInfo, { BackgroundTransparency = 0 }):Play()
+            end)
+            CopyButton.MouseLeave:Connect(function()
+                TweenService:Create(CopyButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+            end)
+
+            --// The text itself is a copy target too. This listens on the label instead
+            --// of parenting a button to it, since a child sized relative to an
+            --// AutomaticSize parent makes that parent grow without bound.
+            Label.InputBegan:Connect(function(Input)
+                if IsClickInput(Input) then
+                    Copy()
+                end
+            end)
+
+            table.insert(FooterSegments, CopyButton)
+            return Label
+        end
+
+        --// Accepts a string, or a list of { Text, Copyable, CopyText } segments
+        function BuildFooter(Footer)
+            for _, Object in FooterSegments do
+                Object:Destroy()
+            end
+            table.clear(FooterSegments)
+
+            if typeof(Footer) == "string" then
+                --// One string: CopyableFooter decides whether all of it is copyable
+                AddFooterSegment({
+                    Text = Footer,
+                    Copyable = WindowInfo.CopyableFooter ~= false,
+                })
+
+                return
+            end
+
+            for _, Segment in Footer do
+                --// Bare strings in a list are plain text; opt in with Copyable = true
+                if typeof(Segment) == "string" then
+                    Segment = { Text = Segment, Copyable = false }
+                end
+
+                AddFooterSegment(Segment)
+            end
+        end
+
+        --// The minimized card shows the same footer, flattened to plain text since it
+        --// has no room for per segment copy buttons
+        function BuildMiniFooter(Footer)
+            if not MiniFooter then
+                return
+            end
+
+            if typeof(Footer) == "string" then
+                MiniFooter.Text = Footer
+            else
+                local Parts = {}
+
+                for _, Segment in Footer do
+                    if typeof(Segment) == "string" then
+                        table.insert(Parts, Segment)
+                    elseif typeof(Segment) == "table" and Segment.Text ~= nil then
+                        table.insert(Parts, tostring(Segment.Text))
+                    end
+                end
+
+                MiniFooter.Text = table.concat(Parts, " ")
+            end
+
+            MiniFooterHolder.Visible = MiniFooter.Text ~= ""
+        end
+
+        BuildFooter(WindowInfo.Footer)
+        BuildMiniFooter(WindowInfo.Footer)
+        --// Remembered so standalone screens (e.g. the unsupported-executor gate)
+        --// can default their footer to the window's
+        Library.Footer = WindowInfo.Footer
 
         --// Resize Button \\--
         if WindowInfo.Resizable then
@@ -15796,11 +16763,16 @@ function Library:CreateWindow(WindowInfo)
         WindowInfo.BackgroundImage = Image
     end
 
-    function Window:SetFooter(Footer: string)
-        assert(typeof(Footer) == "string", "Expected string for footer got: " .. typeof(Footer))
+    function Window:SetFooter(Footer: string | { any })
+        assert(
+            typeof(Footer) == "string" or typeof(Footer) == "table",
+            "Expected string or table for footer got: " .. typeof(Footer)
+        )
 
-        FooterLabel.Text = Footer
+        BuildFooter(Footer)
+        BuildMiniFooter(Footer)
         WindowInfo.Footer = Footer
+        Library.Footer = Footer
     end
 
     function Window:SetAlwaysOnTop(Enabled: boolean)
@@ -15826,6 +16798,219 @@ function Library:CreateWindow(WindowInfo)
             WindowInfo.SnapAvoidCoreGui = AvoidCoreGui == true
             WindowSnapConfig.AvoidCoreGui = WindowInfo.SnapAvoidCoreGui
         end
+    end
+
+    --// Ported from white558_Library.lua: BackgroundVideo/FullscreenBackground methods \--
+    function Window:SetBackgroundVideo(Video: string | number?)
+        WindowInfo.BackgroundVideo = Video
+
+        local function ResolveVideoId(Value)
+            if typeof(Value) == "number" then
+                return "rbxassetid://" .. tostring(Value)
+            end
+            if typeof(Value) == "string" then
+                if Value:match("^rbxassetid://") or Value:match("^rbxasset://") then
+                    return Value
+                end
+                if tonumber(Value) then
+                    return "rbxassetid://" .. Value
+                end
+                return Value
+            end
+            return nil
+        end
+
+        if not Video then
+            if BackgroundVideoFrame then
+                BackgroundVideoFrame:Destroy()
+                BackgroundVideoFrame = nil
+            end
+            return Window
+        end
+
+        local VideoId = ResolveVideoId(Video)
+        if not VideoId then
+            return Window
+        end
+
+        if not BackgroundVideoFrame then
+            BackgroundVideoFrame = New("VideoFrame", {
+                BackgroundTransparency = 1,
+                Looped = WindowInfo.BackgroundVideoLooped ~= false,
+                Playing = WindowInfo.BackgroundVideoPlaying ~= false,
+                Volume = tonumber(WindowInfo.BackgroundVideoVolume) or 0,
+                ImageTransparency = math.clamp(tonumber(WindowInfo.BackgroundVideoTransparency) or 0.15, 0, 1),
+                ZIndex = 0,
+                Size = UDim2.fromScale(1, 1),
+                Parent = MainFrame,
+            })
+        end
+
+        BackgroundVideoFrame.Video = VideoId
+        BackgroundVideoFrame.Playing = WindowInfo.BackgroundVideoPlaying ~= false
+        return Window
+    end
+
+    function Window:SetBackgroundVideoPlaying(Playing: boolean)
+        WindowInfo.BackgroundVideoPlaying = Playing == true
+        if BackgroundVideoFrame then
+            BackgroundVideoFrame.Playing = WindowInfo.BackgroundVideoPlaying
+        end
+        return Window
+    end
+
+    function Window:SetBackgroundVideoVolume(Volume: number)
+        WindowInfo.BackgroundVideoVolume = math.clamp(tonumber(Volume) or 0, 0, 10)
+        if BackgroundVideoFrame then
+            BackgroundVideoFrame.Volume = WindowInfo.BackgroundVideoVolume
+        end
+        return Window
+    end
+
+    function Window:SetBackgroundVideoTransparency(Transparency: number)
+        WindowInfo.BackgroundVideoTransparency = math.clamp(tonumber(Transparency) or 0.15, 0, 1)
+        if BackgroundVideoFrame then
+            BackgroundVideoFrame.ImageTransparency = WindowInfo.BackgroundVideoTransparency
+        end
+        return Window
+    end
+
+    function Window:SetFullscreenBackground(Enabled: boolean, Options: { [string]: any }?)
+        Options = typeof(Options) == "table" and Options or {}
+        WindowInfo.FullscreenBackground = Enabled == true
+
+        if not Enabled then
+            if FullscreenBackdrop then
+                FullscreenBackdrop.Visible = false
+            end
+            return Window
+        end
+
+        if not FullscreenBackdrop then
+            FullscreenBackdrop = New("Frame", {
+                BackgroundColor3 = Options.Color or WindowInfo.FullscreenBackgroundColor or Color3.new(0, 0, 0),
+                BackgroundTransparency = math.clamp(
+                    tonumber(Options.Transparency or WindowInfo.FullscreenBackgroundTransparency) or 0.35,
+                    0,
+                    1
+                ),
+                Size = UDim2.fromScale(1, 1),
+                ZIndex = -5,
+                Parent = ScreenGui,
+            })
+        else
+            if Options.Color then
+                FullscreenBackdrop.BackgroundColor3 = Options.Color
+            end
+            if Options.Transparency then
+                FullscreenBackdrop.BackgroundTransparency = math.clamp(tonumber(Options.Transparency), 0, 1)
+            end
+        end
+
+        FullscreenBackdrop.Visible = Library.Toggled == true
+        return Window
+    end
+
+    --// Ported from white558_Library.lua: window tags (AddTag) \--
+    function Window:AddTag(Info)
+        if typeof(Info) == "string" then
+            Info = { Text = Info }
+        end
+        Info = typeof(Info) == "table" and Info or {}
+
+        local Text = tostring(Info.Text or Info.Name or "TAG")
+        local Bg = Info.BackgroundColor or Info.Color or "AccentColor"
+        local Fg = Info.TextColor or "FontColor"
+        local TextSize = tonumber(Info.TextSize) or 11
+        local Padding = tonumber(Info.Padding) or 8
+        local Order = tonumber(Info.Order) or 0
+
+        local function ResolveColor(Value, Fallback)
+            if typeof(Value) == "Color3" then
+                return Value
+            end
+            if typeof(Value) == "string" then
+                return GetSchemeValue(Value) or Library.Scheme[Value] or Fallback
+            end
+            return Fallback
+        end
+
+        local BgColor = ResolveColor(Bg, Library.Scheme.AccentColor)
+        local FgColor = ResolveColor(Fg, Library.Scheme.FontColor)
+
+        local Tag = New("TextButton", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = BgColor,
+            BackgroundTransparency = Info.BackgroundTransparency or 0.1,
+            LayoutOrder = Order,
+            Size = UDim2.fromOffset(0, 18),
+            Text = Text,
+            TextColor3 = FgColor,
+            TextSize = TextSize,
+            AutoButtonColor = false,
+            Parent = TagsHolder,
+        })
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, Padding),
+            PaddingRight = UDim.new(0, Padding),
+            Parent = Tag,
+        })
+        table.insert(
+            Library.PillCorners,
+            New("UICorner", {
+                CornerRadius = UDim.new(1, 0),
+                Parent = Tag,
+            })
+        )
+
+        if typeof(Bg) == "string" then
+            Library:AddToRegistry(Tag, { BackgroundColor3 = Bg })
+        end
+        if typeof(Fg) == "string" then
+            Library:AddToRegistry(Tag, { TextColor3 = Fg })
+        end
+
+        local tagTbl = {}
+
+        function tagTbl:SetText(NewText)
+            Tag.Text = tostring(NewText or "")
+        end
+
+        function tagTbl:SetVisible(Visible)
+            Tag.Visible = Visible == true
+        end
+
+        function tagTbl:SetBackgroundColor(Color)
+            local Resolved = ResolveColor(Color, Library.Scheme.AccentColor)
+            Tag.BackgroundColor3 = Resolved
+            if typeof(Color) == "string" then
+                Library:AddToRegistry(Tag, { BackgroundColor3 = Color })
+            else
+                Library:RemoveFromRegistry(Tag)
+            end
+        end
+
+        function tagTbl:SetTextColor(Color)
+            local Resolved = ResolveColor(Color, Library.Scheme.FontColor)
+            Tag.TextColor3 = Resolved
+            if typeof(Color) == "string" then
+                Library:AddToRegistry(Tag, { TextColor3 = Color })
+            else
+                Library:RemoveFromRegistry(Tag)
+            end
+        end
+
+        function tagTbl:SetOrder(NewOrder)
+            Tag.LayoutOrder = tonumber(NewOrder) or 0
+        end
+
+        function tagTbl:Remove()
+            if Tag and Tag.Parent then
+                Tag:Destroy()
+            end
+        end
+
+        return tagTbl
     end
 
     function Window:AddPopup(Info, Time)
@@ -16335,6 +17520,125 @@ function Library:CreateWindow(WindowInfo)
         return IsCompact
     end
 
+    --// Ported from white558_Library.lua: minimize state + minimized labels \--
+    function ApplyWindowVisibility()
+        MainFrame.Visible = Library.Toggled and not Minimized
+
+        if MiniFrame then
+            MiniFrame.Visible = Library.Toggled and Minimized
+        end
+    end
+
+    function Window:IsMinimized()
+        return Minimized
+    end
+
+    function Window:SetMinimized(Value: boolean?)
+        if not MiniFrame then
+            return
+        end
+
+        if Value == nil then
+            Value = not Minimized
+        end
+        Value = Value and true or false
+
+        if Value == Minimized then
+            return
+        end
+        Minimized = Value
+
+        if Minimized then
+            --// Open the pill where the window was, so it does not jump across the screen
+            MiniFrame.Position = MainFrame.Position
+            MiniFrame.AnchorPoint = MainFrame.AnchorPoint
+        else
+            MainFrame.Position = MiniFrame.Position
+            MainFrame.AnchorPoint = MiniFrame.AnchorPoint
+        end
+
+        ApplyWindowVisibility()
+    end
+
+    function Window:ToggleMinimized()
+        Window:SetMinimized(not Minimized)
+    end
+
+    --// Passing nil or an empty string hands the line back to the automatic tab name
+    function Window:SetMinimizedSubtitle(Text: string?)
+        if not MiniSubtitle then
+            return
+        end
+
+        Text = Text or ""
+        MiniSubtitleExplicit = Text ~= ""
+
+        if MiniSubtitleExplicit then
+            MiniSubtitle.Text = Text
+            MiniSubtitle.Visible = true
+        elseif Library.ActiveTab then
+            MiniSubtitle.Text = Library.ActiveTab.Name or ""
+            MiniSubtitle.Visible = MiniSubtitle.Text ~= ""
+        else
+            MiniSubtitle.Visible = false
+        end
+    end
+
+    --// A line of text on the minimized card, for status a script wants visible while
+    --// the window is collapsed. Returns a handle so it can be updated or removed.
+    function Window:AddMinimizedLabel(Text: string?)
+        if not MiniBody then
+            return
+        end
+
+        local Label = New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            LayoutOrder = #MiniLabels,
+            Size = UDim2.new(1, 0, 0, 0),
+            Text = Text or "",
+            TextSize = 13,
+            TextTransparency = 0.25,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = MiniBody,
+        })
+
+        local Handle = {
+            Label = Label,
+            Type = "MinimizedLabel",
+        }
+
+        function Handle:SetText(Value: string?)
+            Label.Text = Value or ""
+        end
+
+        function Handle:SetVisible(Value: boolean)
+            Label.Visible = Value and true or false
+        end
+
+        function Handle:Destroy()
+            local Index = table.find(MiniLabels, Handle)
+            if Index then
+                table.remove(MiniLabels, Index)
+            end
+
+            Label:Destroy()
+            MiniBody.Visible = #MiniLabels > 0
+        end
+
+        table.insert(MiniLabels, Handle)
+        MiniBody.Visible = true
+
+        return Handle
+    end
+
+    function Window:ClearMinimizedLabels()
+        for Index = #MiniLabels, 1, -1 do
+            MiniLabels[Index]:Destroy()
+        end
+    end
+
     function Window:SetCompact(State)
         Window:SetSidebarWidth(State and WindowInfo.SidebarCompactWidth or LastExpandedWidth)
     end
@@ -16369,6 +17673,13 @@ function Library:CreateWindow(WindowInfo)
             SearchBox.Size = UDim2.fromScale(0.5, 1)
         end
         CurrentTabInfo.Visible = true
+
+        --// Keep the minimized card in step unless a subtitle was set explicitly
+        if MiniSubtitle and not MiniSubtitleExplicit then
+            Name = Name or ""
+            MiniSubtitle.Text = Name
+            MiniSubtitle.Visible = Name ~= ""
+        end
     end
 
     function Window:HideTabInfo()
@@ -16384,6 +17695,18 @@ function Library:CreateWindow(WindowInfo)
         local Description = nil
         local Tooltip = nil
         local Order = nil
+        local Layout = nil
+
+        local function IsSingleLayout(Value): boolean
+            if Value == 1 or Value == true then
+                return true
+            end
+            if typeof(Value) == "string" then
+                local Lowered = Value:lower()
+                return Lowered == "single" or Lowered == "center" or Lowered == "centre" or Lowered == "one"
+            end
+            return false
+        end
 
         if select("#", ...) == 1 and typeof(...) == "table" then
             local Info = select(1, ...)
@@ -16392,6 +17715,10 @@ function Library:CreateWindow(WindowInfo)
             Description = Info.Description
             Tooltip = Info.Tooltip
             Order = Info.Order
+            Layout = Info.Layout
+            if Info.SingleColumn ~= nil then
+                Layout = Info.SingleColumn and "Single" or "Dual"
+            end
         else
             Name = select(1, ...)
             Icon = select(2, ...)
@@ -16403,6 +17730,8 @@ function Library:CreateWindow(WindowInfo)
             Order = #Tabs:GetChildren()
         end
 
+        local SingleColumn = IsSingleLayout(Layout)
+
         local TabButton: TextButton
         local TabIndicator
         local TabLabel
@@ -16411,6 +17740,23 @@ function Library:CreateWindow(WindowInfo)
         local TabContainer
         local TabLeft
         local TabRight
+
+        --// Sub tabs (ported from white558): content-area bar + per-sub-tab sides
+        local SubTabBar
+        local SubTabButtons
+        local SubTabBarLayout
+        local SubTabUnderline
+        local SubTabUnderlineTween
+        local SubTabUnderlineSettling = false
+        local SubTabAlignment = "Center"
+        local MoveSubTabUnderline
+        --// Sidebar nested list is not built in this fork (no TabHolder);
+        --// entries stay nil and all uses are nil-guarded
+        local SidebarList = nil
+        local SidebarListLayout = nil
+        local SidebarListTween = nil
+        local SidebarEntries = {}
+        local Expanded = false
 
         Icon = Library:GetCustomIcon(Icon)
         do
@@ -16592,6 +17938,10 @@ function Library:CreateWindow(WindowInfo)
             Groupboxes = {},
             Tabboxes = {},
             DependencyGroupboxes = {},
+
+            Type = "Tab",
+            SubTabs = {},
+            ActiveSubTab = nil,
         }
 
         --// Warning Box \\--
@@ -16781,6 +18131,10 @@ function Library:CreateWindow(WindowInfo)
                 Side.Position = UDim2.new(Side.Position.X.Scale, 0, 0, Offset)
                 Side.Size = UDim2.new(0.5, -3, 1, -Offset)
             end
+
+            for _, SubTab in Tab.SubTabs do
+                SubTab:RefreshSides()
+            end
         end
 
         function Tab:Resize(ResizeWarningBox: boolean?)
@@ -16881,6 +18235,7 @@ function Library:CreateWindow(WindowInfo)
 
             local TabboxHolder
             local TabboxButtons
+            local TabboxUnderline
 
             do
                 TabboxHolder = New("Frame", {
@@ -16908,6 +18263,24 @@ function Library:CreateWindow(WindowInfo)
                     Parent = TabboxButtons,
                 })
             end
+                --// Ported from white558: header divider + sliding accent underline \--
+                --// Full-width separator under the tab row (header divider)
+                Library:MakeLine(TabboxHolder, {
+                    Position = UDim2.fromOffset(0, 34),
+                    Size = UDim2.new(1, 0, 0, 1),
+                })
+
+                --// Accent underline that slides to the active tab
+                TabboxUnderline = New("Frame", {
+                    AnchorPoint = Vector2.new(0, 1),
+                    BackgroundColor3 = "AccentColor",
+                    BorderSizePixel = 0,
+                    Position = UDim2.fromOffset(0, 35),
+                    Size = UDim2.fromOffset(0, 2),
+                    Visible = false,
+                    ZIndex = 3,
+                    Parent = TabboxHolder,
+                })
 
             local TotalTabs = 0
             local FirstTab
@@ -16930,6 +18303,50 @@ function Library:CreateWindow(WindowInfo)
             }
 
             function Tabbox:UpdateCorners()
+            --// Ported from white558: slide accent underline under active tab \--
+            --// Slide the accent underline under the given tab button. Uses the
+            --// button's laid-out rect (flex-filled), so it stays correct for any
+            --// number of tabs and any DPI scale.
+            local function MoveUnderline(Button: GuiObject, Animate: boolean)
+                if not (TabboxUnderline and Button) then
+                    return
+                end
+
+                if TabboxButtons.AbsoluteSize.X <= 0 then
+                    task.defer(MoveUnderline, Button, false)
+                    return
+                end
+
+                local Scale = Library.DPIScale > 0 and Library.DPIScale or 1
+                local RelX = (Button.AbsolutePosition.X - TabboxButtons.AbsolutePosition.X) / Scale
+                local Width = Button.AbsoluteSize.X / Scale
+                local Pad = 12
+
+                local GoalPos = UDim2.fromOffset(math.floor(RelX + Pad), 35)
+                local GoalSize = UDim2.fromOffset(math.max(0, math.floor(Width - Pad * 2)), 2)
+
+                TabboxUnderline.Visible = true
+                if Animate and Library.Animations and Library.Animations.SubTabUnderline ~= false then
+                    TweenService:Create(TabboxUnderline, SUBTAB_SLIDE_TWEEN, {
+                        Position = GoalPos,
+                        Size = GoalSize,
+                    }):Play()
+                else
+                    TabboxUnderline.Position = GoalPos
+                    TabboxUnderline.Size = GoalSize
+                end
+            end
+
+            --// Realign the underline when the row is resized (DPI, width, pop-out)
+            table.insert(
+                Tabbox.Connections,
+                TabboxButtons:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                    if Tabbox.ActiveTab then
+                        MoveUnderline(Tabbox.ActiveTab.ButtonHolder, false)
+                    end
+                end)
+            )
+
                 for _, Tab in Tabbox.Tabs do
                     Tab:UpdateCorners()
                 end
@@ -17076,6 +18493,10 @@ function Library:CreateWindow(WindowInfo)
 
                     Tabbox.ActiveTab = Tab
                     Tab:Resize()
+
+                    --// Slide the underline to this tab
+                    MoveUnderline(Button, true)
+
                     Tabbox:RefreshPopOutPlaceholder()
                 end
 
@@ -17108,6 +18529,9 @@ function Library:CreateWindow(WindowInfo)
                     if ParentObj.Type == "Groupbox" then
                         ParentObj:Resize()
                     end
+
+                    --// Keep the underline aligned after reflows (e.g. search hides tabs)
+                    MoveUnderline(Button, false)
                 end
 
                 function Tab:UpdateCorners()
@@ -17632,6 +19056,920 @@ function Library:CreateWindow(WindowInfo)
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
+        --// Ported from white558: sidebar helpers (stubbed list) + SubTab bar/system \--
+        local function SidebarListHeight(): number
+            return SidebarListLayout and SidebarListLayout.AbsoluteContentSize.Y or 0
+        end
+
+        local function ResizeSidebarList(Animate: boolean?)
+            if not SidebarList then
+                return
+            end
+
+            --// Stays open in a compact sidebar too; entries render as centered
+            --// icon-only rows there instead of labelled ones
+            local Open = Expanded
+            local Target = Open and SidebarListHeight() or 0
+            local Animated = Animate and Library.Animations and Library.Animations.SidebarSubTabs ~= false
+
+            --// A toggle mid animation would otherwise leave two tweens fighting
+            if SidebarListTween then
+                StopTween(SidebarListTween, true)
+                SidebarListTween = nil
+            end
+
+            --// Stays visible for the whole collapse: hiding it up front would play the
+            --// tween on a frame nobody can see, which reads as the list snapping shut
+            if Target > 0 then
+                SidebarList.Visible = true
+            end
+
+            if Animated then
+                SidebarListTween = TweenService:Create(SidebarList, Library.GroupboxTweenInfo, {
+                    Size = UDim2.new(1, 0, 0, Target),
+                })
+
+                if Target == 0 then
+                    local Connection
+                    Connection = SidebarListTween.Completed:Connect(function(State: Enum.PlaybackState)
+                        Connection:Disconnect()
+
+                        --// Cancelled means something re-opened it on the way down
+                        if State == Enum.PlaybackState.Completed and SidebarList.Size.Y.Offset == 0 then
+                            SidebarList.Visible = false
+                        end
+                    end)
+                end
+
+                SidebarListTween:Play()
+            else
+                SidebarList.Size = UDim2.new(1, 0, 0, Target)
+                SidebarList.Visible = Target > 0
+            end
+
+            if TabChevron then
+                local Rotation = Open and 180 or 0
+
+                if Animated then
+                    TweenService:Create(TabChevron, Library.RotatingChevronTweenInfo, {
+                        Rotation = Rotation,
+                    }):Play()
+                else
+                    TabChevron.Rotation = Rotation
+                end
+            end
+        end
+
+        --// Built on the first AddSubTab, so tabs without sub tabs stay untouched
+        --// Built on the first AddSubTab in upstream; stubbed here (no TabHolder),
+        --// so the nested sidebar list stays unbuilt and entries stay nil.
+        local function EnsureSidebarList()
+            return
+        end
+
+        --// One row in the sidebar list, mirroring a sub tab
+        local function CreateSidebarEntry(SubTab, SubName: string, SubIcon)
+            EnsureSidebarList()
+
+            if not SidebarList then
+                return nil
+            end
+
+            local Entry = New("TextButton", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                LayoutOrder = #SidebarEntries,
+                Size = UDim2.new(1, 0, 0, 30),
+                Text = "",
+                Parent = SidebarList,
+            })
+
+            --// Accent bar marking the open sub tab
+            local Marker = New("Frame", {
+                AnchorPoint = Vector2.new(0, 0.5),
+                BackgroundColor3 = "AccentColor",
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 14, 0.5, 0),
+                Size = UDim2.fromOffset(2, 16),
+                Parent = Entry,
+            })
+            table.insert(
+                Library.PillCorners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = Marker,
+                })
+            )
+
+            --// The icon column is reserved whether or not this row has one, so every
+            --// label starts at the same x. Indenting only the iconless rows made them
+            --// read as a level shallower than their siblings.
+            local TextOffset = SUBTAB_SIDEBAR_INDENT + SUBTAB_SIDEBAR_ICON_COLUMN
+
+            local EntryIcon
+            if SubIcon then
+                EntryIcon = New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundTransparency = 1,
+                    Image = SubIcon.Url,
+                    ImageColor3 = SubIcon.Custom and "WhiteColor" or "FontColor",
+                    ImageRectOffset = SubIcon.ImageRectOffset,
+                    ImageRectSize = SubIcon.ImageRectSize,
+                    ImageTransparency = SUBTAB_IDLE_TRANSPARENCY,
+                    Position = UDim2.new(0, SUBTAB_SIDEBAR_INDENT, 0.5, 0),
+                    ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(14, 14),
+                    Parent = Entry,
+                })
+            end
+
+            local EntryLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(TextOffset, 0),
+                Size = UDim2.new(1, -TextOffset - 10, 1, 0),
+                Text = SubName,
+                TextSize = 14,
+                TextTransparency = SUBTAB_IDLE_TRANSPARENCY,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = Entry,
+            })
+
+            local Handle = {
+                Button = Entry,
+                Label = EntryLabel,
+                Active = false,
+            }
+
+            function Handle:SetActive(Value: boolean)
+                Handle.Active = Value and true or false
+
+                --// Registry keeps the colour right across theme changes
+                Library:AddToRegistry(EntryLabel, { TextColor3 = Handle.Active and "AccentColor" or "FontColor" })
+                EntryLabel.TextColor3 = Handle.Active and Library.Scheme.AccentColor or Library.Scheme.FontColor
+
+                TweenService:Create(Entry, Library.TweenInfo, {
+                    BackgroundTransparency = Handle.Active and 0.5 or 1,
+                }):Play()
+                TweenService:Create(Marker, Library.TweenInfo, {
+                    BackgroundTransparency = Handle.Active and 0 or 1,
+                }):Play()
+                TweenService:Create(EntryLabel, Library.TweenInfo, {
+                    TextTransparency = Handle.Active and 0 or SUBTAB_IDLE_TRANSPARENCY,
+                }):Play()
+
+                if EntryIcon then
+                    TweenService:Create(EntryIcon, Library.TweenInfo, {
+                        ImageTransparency = Handle.Active and 0 or SUBTAB_IDLE_TRANSPARENCY,
+                    }):Play()
+                end
+            end
+
+            --// Compact sidebar: center the icon and drop the label + indent marker
+            --// so the sub tab still shows as a small icon under its parent
+            function Handle:SetCompact(Compact: boolean)
+                Handle.Compact = Compact and true or false
+
+                if EntryIcon then
+                    EntryIcon.AnchorPoint = Handle.Compact and Vector2.new(0.5, 0.5) or Vector2.new(0, 0.5)
+                    EntryIcon.Position = Handle.Compact and UDim2.fromScale(0.5, 0.5)
+                        or UDim2.new(0, SUBTAB_SIDEBAR_INDENT, 0.5, 0)
+                    EntryIcon.Size = Handle.Compact and UDim2.fromOffset(15, 15) or UDim2.fromOffset(14, 14)
+                    EntryLabel.Visible = not Handle.Compact
+                else
+                    --// Iconless row: keep the label but center it so it is not blank
+                    EntryLabel.TextXAlignment = Handle.Compact and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+                    EntryLabel.Position = Handle.Compact and UDim2.fromOffset(0, 0) or UDim2.fromOffset(TextOffset, 0)
+                    EntryLabel.Size = Handle.Compact and UDim2.new(1, 0, 1, 0) or UDim2.new(1, -TextOffset - 10, 1, 0)
+                end
+
+                Marker.Visible = not Handle.Compact
+            end
+
+            function Handle:SetVisible(Value: boolean)
+                Entry.Visible = Value and true or false
+                ResizeSidebarList(false)
+            end
+
+            function Handle:Destroy()
+                local Index = table.find(SidebarEntries, Handle)
+                if Index then
+                    table.remove(SidebarEntries, Index)
+                end
+
+                Entry:Destroy()
+                ResizeSidebarList(false)
+            end
+
+            Entry.MouseEnter:Connect(function()
+                if Handle.Active then
+                    return
+                end
+
+                TweenService:Create(EntryLabel, Library.TweenInfo, { TextTransparency = 0.2 }):Play()
+            end)
+            Entry.MouseLeave:Connect(function()
+                if Handle.Active then
+                    return
+                end
+
+                TweenService:Create(EntryLabel, Library.TweenInfo, {
+                    TextTransparency = SUBTAB_IDLE_TRANSPARENCY,
+                }):Play()
+            end)
+
+            Entry.MouseButton1Click:Connect(function()
+                --// Selecting a sub tab implies opening the tab that owns it
+                if Library.ActiveTab ~= Tab then
+                    Tab:Show()
+                end
+
+                SubTab:Show()
+            end)
+
+            --// Sub tab hint; "Sidebar" variant shows only while compact, where
+            --// only the icon is visible
+            Library:AddTooltip(SubName, nil, Entry, "Sidebar")
+
+            --// Match whatever mode the sidebar is currently in
+            Handle:SetCompact(IsCompact)
+
+            table.insert(SidebarEntries, Handle)
+            ResizeSidebarList(false)
+
+            return Handle
+        end
+
+        function Tab:IsExpanded(): boolean
+            return Expanded
+        end
+
+        function Tab:SetExpanded(Value: boolean?)
+            if Value == nil then
+                Value = not Expanded
+            end
+            Expanded = Value and true or false
+
+            ResizeSidebarList(true)
+        end
+
+        function Tab:ToggleExpanded()
+            Tab:SetExpanded(not Expanded)
+        local function CreateSubTabBar()
+            if SubTabBar then
+                return
+            end
+
+            SubTabBar = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, -4, 0, SUBTAB_BAR_HEIGHT),
+                Position = UDim2.fromOffset(2, 0),
+                ZIndex = 2,
+                Parent = TabContainer,
+            })
+            --// The buttons get their own frame: a UIListLayout lays out every child,
+            --// so the underline cannot live alongside them without being laid out too
+            SubTabButtons = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                Parent = SubTabBar,
+            })
+            SubTabBarLayout = New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalAlignment = Enum.HorizontalAlignment[SubTabAlignment],
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Padding = UDim.new(0, 6),
+                Parent = SubTabButtons,
+            })
+
+            --// A single bar shared by every sub tab, so it can slide between them.
+            --// Accent in the middle fading out at both ends, rather than a hard rule.
+            SubTabUnderline = New("Frame", {
+                AnchorPoint = Vector2.new(0, 1),
+                BackgroundColor3 = "AccentColor",
+                BorderSizePixel = 0,
+                Position = UDim2.new(0, 0, 1, 0),
+                Size = UDim2.fromOffset(0, 1),
+                Visible = false,
+                Parent = SubTabBar,
+            })
+            New("UIGradient", {
+                --// Font colour at the ends, accent in the middle
+                Color = function()
+                    return ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Library.Scheme.FontColor),
+                        ColorSequenceKeypoint.new(0.5, Library.Scheme.AccentColor),
+                        ColorSequenceKeypoint.new(1, Library.Scheme.FontColor),
+                    })
+                end,
+                --// Extra keypoints either side of the middle round the falloff off,
+                --// so the ends taper away instead of ramping linearly
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, 1),
+                    NumberSequenceKeypoint.new(0.2, 0.85),
+                    NumberSequenceKeypoint.new(0.5, 0.1),
+                    NumberSequenceKeypoint.new(0.8, 0.85),
+                    NumberSequenceKeypoint.new(1, 1),
+                }),
+                Parent = SubTabUnderline,
+            })
+
+            --// The buttons move when the window is resized, so follow them
+            table.insert(
+                Tab.Connections,
+                SubTabBar:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                    if Tab.ActiveSubTab then
+                        SubTabUnderline.Visible = false
+                        MoveSubTabUnderline(Tab.ActiveSubTab.Button)
+                    end
+                end)
+            )
+
+            --// The parent tab acts purely as a host once sub tabs exist
+            TabLeft.Visible = false
+            TabRight.Visible = false
+
+            Tab:RefreshSides()
+        end
+
+        --// Slides the shared bar under Button; snaps when nothing was active yet
+        function MoveSubTabUnderline(Button: GuiObject)
+            if not SubTabUnderline then
+                return
+            end
+
+            --// A button added this frame has not been laid out yet
+            if Button.AbsoluteSize.X == 0 then
+                task.defer(function()
+                    if Tab.ActiveSubTab and Tab.ActiveSubTab.Button == Button then
+                        MoveSubTabUnderline(Button)
+                    end
+                end)
+
+                return
+            end
+
+            local Scale = Library.DPIScale
+            local OffsetX = (Button.AbsolutePosition.X - SubTabBar.AbsolutePosition.X) / Scale
+            local Width = Button.AbsoluteSize.X / Scale
+            --// Sits inside the chip, a little above its bottom edge
+            local Bottom = (Button.AbsolutePosition.Y + Button.AbsoluteSize.Y - SubTabBar.AbsolutePosition.Y) / Scale
+
+            --// Inset to a fraction of the chip, centered under the text
+            local LineWidth = math.floor(Width * SUBTAB_UNDERLINE_WIDTH)
+
+            local Target = {
+                Position = UDim2.fromOffset(
+                    math.floor(OffsetX + (Width - LineWidth) / 2),
+                    Bottom - SUBTAB_UNDERLINE_GAP
+                ),
+                Size = UDim2.fromOffset(LineWidth, 1),
+            }
+
+            if SubTabUnderlineTween then
+                StopTween(SubTabUnderlineTween, true)
+                SubTabUnderlineTween = nil
+            end
+
+            --// Nothing to slide from on the first show. On the very first load the
+            --// buttons may not be laid out yet, so the geometry read above can be
+            --// stale (the chip briefly reads as the whole bar's width), which drops
+            --// the line wide and centered across every tab. Wait until the button's
+            --// geometry holds steady for a frame before revealing, so it snaps into
+            --// the right place instead of flashing in the middle.
+            if not SubTabUnderline.Visible then
+                if SubTabUnderlineSettling then
+                    return
+                end
+
+                SubTabUnderlineSettling = true
+
+                task.spawn(function()
+                    local LastPos, LastSize
+                    for _ = 1, 6 do
+                        if not SubTabUnderline or not Tab.ActiveSubTab or Tab.ActiveSubTab.Button ~= Button then
+                            SubTabUnderlineSettling = false
+                            return
+                        end
+
+                        local Pos = Button.AbsolutePosition
+                        local Sz = Button.AbsoluteSize
+                        if Sz.X > 0 and LastPos and Pos == LastPos and Sz == LastSize then
+                            break
+                        end
+
+                        LastPos, LastSize = Pos, Sz
+                        RunService.RenderStepped:Wait()
+                    end
+
+                    SubTabUnderlineSettling = false
+
+                    if not SubTabUnderline or SubTabUnderline.Visible or not Tab.ActiveSubTab or Tab.ActiveSubTab.Button ~= Button then
+                        return
+                    end
+
+                    --// Recompute from the now-settled geometry and snap into place
+                    local FinalOffsetX = (Button.AbsolutePosition.X - SubTabBar.AbsolutePosition.X) / Library.DPIScale
+                    local FinalWidth = Button.AbsoluteSize.X / Library.DPIScale
+                    local FinalBottom = (Button.AbsolutePosition.Y + Button.AbsoluteSize.Y - SubTabBar.AbsolutePosition.Y) / Library.DPIScale
+                    local FinalLineWidth = math.floor(FinalWidth * SUBTAB_UNDERLINE_WIDTH)
+
+                    SubTabUnderline.Position = UDim2.fromOffset(
+                        math.floor(FinalOffsetX + (FinalWidth - FinalLineWidth) / 2),
+                        FinalBottom - SUBTAB_UNDERLINE_GAP
+                    )
+                    SubTabUnderline.Size = UDim2.fromOffset(FinalLineWidth, 1)
+                    SubTabUnderline.Visible = true
+                end)
+
+                return
+            end
+
+            if Library.Animations and Library.Animations.SubTabUnderline == false then
+                SubTabUnderline.Position = Target.Position
+                SubTabUnderline.Size = Target.Size
+
+                return
+            end
+
+            SubTabUnderlineTween = TweenService:Create(SubTabUnderline, SUBTAB_SLIDE_TWEEN, Target)
+            SubTabUnderlineTween:Play()
+        end
+
+        --// "Left" | "Center" | "Right"
+        function Tab:SetSubTabAlignment(Alignment: string)
+            assert(Enum.HorizontalAlignment[Alignment], "Alignment must be Left, Center or Right.")
+
+            SubTabAlignment = Alignment
+            if SubTabBarLayout then
+                SubTabBarLayout.HorizontalAlignment = Enum.HorizontalAlignment[Alignment]
+            end
+        end
+
+        function Tab:GetContentOffset()
+            local Offset = WarningBoxHolder.Visible and WarningBox.Size.Y.Offset + 8 or 0
+            Offset = ApplyPlayerBannerOffset(Offset)
+
+            if SubTabBar and SubTabBar.Visible then
+                SubTabBar.Position = UDim2.new(0, 2, 0, Offset)
+                Offset += SUBTAB_BAR_HEIGHT + 6
+            end
+
+            return Offset
+        end
+
+        --// Full-width player card, spanning both columns at the top of the tab.
+        --// The compact card is a groupbox element (Groupbox:AddPlayerInfo).
+        function Tab:AddSubTab(...)
+            local SubName = nil
+            local SubIcon = nil
+
+            if select("#", ...) == 1 and typeof(...) == "table" then
+                local Info = select(1, ...)
+                SubName = Info.Name or "SubTab"
+                SubIcon = Info.Icon
+            else
+                SubName = select(1, ...) or "SubTab"
+                SubIcon = select(2, ...)
+            end
+
+            CreateSubTabBar()
+
+            SubIcon = Library:GetCustomIcon(SubIcon)
+
+            --// Button \\--
+            --// Measured rather than AutomaticSize: the button holds children sized
+            --// relative to it (the underline), and auto sizing off those runs away.
+            local IconWidth = SubIcon and SUBTAB_ICON_SIZE + 6 or 0
+            local TextWidth = math.ceil(Library:GetTextBounds(SubName, Library.Scheme.Font, 15))
+
+            --// The button itself is just the hit target and the layout item. The
+            --// visible chip and its shadow are siblings inside it, because Roblox
+            --// renders children above their parent, so a shadow cannot be a child
+            --// of the thing it falls behind.
+            local Button = New("TextButton", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromOffset(TextWidth + IconWidth + 24, SUBTAB_BAR_HEIGHT - 8),
+                Text = "",
+                Parent = SubTabButtons,
+            })
+
+            --// Everything visible lives in here so hover can scale it as one piece,
+            --// while the button keeps its size and the row never reflows
+            local ButtonVisual = New("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.fromScale(1, 1),
+                Parent = Button,
+            })
+            --// Deliberately not in Library.Scales: that is the DPI scale, which would
+            --// overwrite this every time SetDPIScale runs
+            local ButtonScale = New("UIScale", {
+                Scale = 1,
+                Parent = ButtonVisual,
+            })
+
+            --// Two offset layers read as a soft shadow without needing an image
+            local ButtonShadows = {}
+            for Index = 1, 2 do
+                local Shadow = New("Frame", {
+                    BackgroundColor3 = "DarkColor",
+                    BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(0, Index),
+                    Size = UDim2.fromScale(1, 1),
+                    ZIndex = 1,
+                    Parent = ButtonVisual,
+                })
+                table.insert(
+                    Library.Corners,
+                    New("UICorner", {
+                        CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                        Parent = Shadow,
+                    })
+                )
+
+                table.insert(ButtonShadows, Shadow)
+            end
+
+            local Chip = New("Frame", {
+                --// Lighter than MainColor so the active chip separates from the tab
+                BackgroundColor3 = function()
+                    return Library:GetBetterColor(Library.Scheme.MainColor, 10)
+                end,
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                ZIndex = 2,
+                Parent = ButtonVisual,
+            })
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
+                    Parent = Chip,
+                })
+            )
+            local ButtonStroke = New("UIStroke", {
+                Color = "OutlineColor",
+                Transparency = 1,
+                Parent = Chip,
+            })
+
+            --// Icon and label flow inside their own frame, so nothing else in the
+            --// chip is swept into the row by the list layout
+            local ButtonContent = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                Parent = Chip,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Padding = UDim.new(0, 6),
+                Parent = ButtonContent,
+            })
+
+            local ButtonIcon
+            if SubIcon then
+                ButtonIcon = New("ImageLabel", {
+                    Image = SubIcon.Url,
+                    ImageColor3 = SubIcon.Custom and "WhiteColor" or "AccentColor",
+                    ImageRectOffset = SubIcon.ImageRectOffset,
+                    ImageRectSize = SubIcon.ImageRectSize,
+                    ImageTransparency = SUBTAB_IDLE_TRANSPARENCY,
+                    ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(SUBTAB_ICON_SIZE, SUBTAB_ICON_SIZE),
+                    Parent = ButtonContent,
+                })
+            end
+
+            local ButtonLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromOffset(TextWidth, 16),
+                Text = SubName,
+                TextSize = 15,
+                TextTransparency = SUBTAB_IDLE_TRANSPARENCY,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                Parent = ButtonContent,
+            })
+
+            --// Content \\--
+            local SubCanvas = New("CanvasGroup", {
+                BackgroundTransparency = 1,
+                GroupTransparency = 0,
+                Size = UDim2.fromScale(1, 1),
+                Visible = false,
+                Parent = TabContainer,
+            })
+
+            local SubLeft = New("ScrollingFrame", {
+                AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                CanvasSize = UDim2.fromScale(0, 0),
+                ScrollBarImageTransparency = 1,
+                ScrollBarThickness = 0,
+                Size = SingleColumn and UDim2.new(1, 0, 1, 0) or UDim2.new(0.5, -3, 1, 0),
+                Parent = SubCanvas,
+            })
+            local SubRight = New("ScrollingFrame", {
+                AnchorPoint = Vector2.new(1, 0),
+                AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                CanvasSize = UDim2.fromScale(0, 0),
+                Position = UDim2.fromScale(1, 0),
+                ScrollBarImageTransparency = 1,
+                ScrollBarThickness = 0,
+                Size = UDim2.new(0.5, -3, 1, 0),
+                Visible = not SingleColumn,
+                Parent = SubCanvas,
+            })
+
+            for _, Side in { SubLeft, SubRight } do
+                New("UIListLayout", {
+                    Padding = UDim.new(0, 2),
+                    Parent = Side,
+                })
+                New("UIPadding", {
+                    PaddingBottom = UDim.new(0, 2),
+                    PaddingLeft = UDim.new(0, 2),
+                    PaddingRight = UDim.new(0, 2),
+                    PaddingTop = UDim.new(0, 2),
+                    Parent = Side,
+                })
+                New("Frame", {
+                    BackgroundTransparency = 1,
+                    LayoutOrder = -1,
+                    Parent = Side,
+                })
+                New("Frame", {
+                    BackgroundTransparency = 1,
+                    LayoutOrder = 1,
+                    Parent = Side,
+                })
+            end
+
+            --// SubTab Table \\--
+            local SubTab = {
+                Type = "SubTab",
+                Name = SubName,
+
+                Connections = {},
+                Destroyed = false,
+
+                Window = Window,
+                Tab = Tab,
+                Canvas = SubCanvas,
+                Button = Button,
+                SingleColumn = SingleColumn,
+                Sides = SingleColumn and {
+                    SubLeft,
+                    SubLeft,
+                } or {
+                    SubLeft,
+                    SubRight,
+                },
+
+                Groupboxes = {},
+                Tabboxes = {},
+                DependencyGroupboxes = {},
+            }
+
+            SubTab.AddGroupbox = Tab.AddGroupbox
+            SubTab.AddLeftGroupbox = Tab.AddLeftGroupbox
+            SubTab.AddRightGroupbox = Tab.AddRightGroupbox
+            SubTab.AddTabbox = AddTabbox
+            SubTab.AddLeftTabbox = Tab.AddLeftTabbox
+            SubTab.AddRightTabbox = Tab.AddRightTabbox
+
+            function SubTab:RefreshSides()
+                local Offset = Tab:GetContentOffset()
+
+                for _, Side in SubTab.Sides do
+                    Side.Position = UDim2.new(Side.Position.X.Scale, 0, 0, Offset)
+                    Side.Size = SubTab.SingleColumn and UDim2.new(1, 0, 1, -Offset) or UDim2.new(0.5, -3, 1, -Offset)
+                end
+            end
+
+            function SubTab:Resize()
+                SubTab:RefreshSides()
+            end
+
+            function SubTab:Hover(Hovering)
+                --// The squash applies to the active sub tab too: hovering the chip you
+                --// are already on should still respond
+                TweenService:Create(ButtonScale, SUBTAB_HOVER_TWEEN, {
+                    Scale = Hovering and SUBTAB_HOVER_SCALE or 1,
+                }):Play()
+
+                if Tab.ActiveSubTab == SubTab then
+                    return
+                end
+
+                TweenService:Create(Chip, Library.TweenInfo, {
+                    BackgroundTransparency = Hovering and 0.45 or 1,
+                }):Play()
+                TweenService:Create(ButtonStroke, Library.TweenInfo, {
+                    Transparency = Hovering and 0.7 or 1,
+                }):Play()
+                for Index, Shadow in ButtonShadows do
+                    TweenService:Create(Shadow, Library.TweenInfo, {
+                        BackgroundTransparency = Hovering and SUBTAB_SHADOW_TRANSPARENCY[Index] + 0.2 or 1,
+                    }):Play()
+                end
+                TweenService:Create(ButtonLabel, Library.TweenInfo, {
+                    TextTransparency = Hovering and 0.1 or SUBTAB_IDLE_TRANSPARENCY,
+                }):Play()
+                if ButtonIcon then
+                    TweenService:Create(ButtonIcon, Library.TweenInfo, {
+                        ImageTransparency = Hovering and 0.1 or SUBTAB_IDLE_TRANSPARENCY,
+                    }):Play()
+                end
+            end
+
+            function SubTab:Show()
+                if Tab.ActiveSubTab == SubTab then
+                    return
+                end
+
+                if Tab.ActiveSubTab then
+                    Tab.ActiveSubTab:Hide()
+                end
+
+                Library:AddToRegistry(ButtonLabel, { TextColor3 = "AccentColor" })
+                ButtonLabel.TextColor3 = Library.Scheme.AccentColor
+
+                TweenService:Create(Chip, Library.TweenInfo, {
+                    BackgroundTransparency = 0,
+                }):Play()
+                TweenService:Create(ButtonStroke, Library.TweenInfo, {
+                    Transparency = 0.25,
+                }):Play()
+                for Index, Shadow in ButtonShadows do
+                    TweenService:Create(Shadow, Library.TweenInfo, {
+                        BackgroundTransparency = SUBTAB_SHADOW_TRANSPARENCY[Index],
+                    }):Play()
+                end
+                TweenService:Create(ButtonLabel, Library.TweenInfo, {
+                    TextTransparency = 0,
+                }):Play()
+                if ButtonIcon then
+                    TweenService:Create(ButtonIcon, Library.TweenInfo, {
+                        ImageTransparency = 0,
+                    }):Play()
+                end
+                if SubTab.SidebarEntry then
+                    SubTab.SidebarEntry:SetActive(true)
+                end
+
+                --// Set before moving the bar: a deferred move re-checks it
+                Tab.ActiveSubTab = SubTab
+                MoveSubTabUnderline(Button)
+
+                SubTab:RefreshSides()
+                Library:PlayTabAnimation(SubCanvas, true, nil, SUB_TAB_SWIPE_FROM)
+
+                if Library.Searching then
+                    Library:UpdateSearch(Library.SearchText)
+                end
+            end
+
+            function SubTab:Hide()
+                Library:AddToRegistry(ButtonLabel, { TextColor3 = "FontColor" })
+                ButtonLabel.TextColor3 = Library.Scheme.FontColor
+
+                TweenService:Create(Chip, Library.TweenInfo, {
+                    BackgroundTransparency = 1,
+                }):Play()
+                TweenService:Create(ButtonStroke, Library.TweenInfo, {
+                    Transparency = 1,
+                }):Play()
+                for _, Shadow in ButtonShadows do
+                    TweenService:Create(Shadow, Library.TweenInfo, {
+                        BackgroundTransparency = 1,
+                    }):Play()
+                end
+                TweenService:Create(ButtonLabel, Library.TweenInfo, {
+                    TextTransparency = SUBTAB_IDLE_TRANSPARENCY,
+                }):Play()
+                if ButtonIcon then
+                    TweenService:Create(ButtonIcon, Library.TweenInfo, {
+                        ImageTransparency = SUBTAB_IDLE_TRANSPARENCY,
+                    }):Play()
+                end
+
+                if SubTab.SidebarEntry then
+                    SubTab.SidebarEntry:SetActive(false)
+                end
+
+                Library:PlayTabAnimation(SubCanvas, false, nil, SUB_TAB_SWIPE_FROM)
+
+                if Tab.ActiveSubTab == SubTab then
+                    Tab.ActiveSubTab = nil
+                end
+            end
+
+            function SubTab:SetVisible(Visible: boolean)
+                Button.Visible = Visible
+
+                if SubTab.SidebarEntry then
+                    SubTab.SidebarEntry:SetVisible(Visible)
+                end
+
+                --// Hiding a hovered button never fires MouseLeave
+                if not Visible then
+                    ButtonScale.Scale = 1
+                end
+
+                if not Visible and Tab.ActiveSubTab == SubTab then
+                    SubTab:Hide()
+
+                    for _, Other in Tab.SubTabs do
+                        if Other ~= SubTab and Other.Button.Visible then
+                            Other:Show()
+                            break
+                        end
+                    end
+
+                    --// Hiding is only left unresolved when none are visible. The bar
+                    --// has nothing to sit under, and the next Show snaps it back.
+                    if not Tab.ActiveSubTab and SubTabUnderline then
+                        SubTabUnderline.Visible = false
+                    end
+                end
+            end
+
+            function SubTab:Destroy()
+                SubTab.Destroyed = true
+
+                if SubTab.SidebarEntry then
+                    SubTab.SidebarEntry:Destroy()
+                    SubTab.SidebarEntry = nil
+                end
+
+                for _, Connection in SubTab.Connections do
+                    Connection:Disconnect()
+                end
+
+                for _, Groupbox in SubTab.Groupboxes do
+                    if Groupbox.Destroy then
+                        Groupbox:Destroy()
+                    end
+                end
+                table.clear(SubTab.Groupboxes)
+
+                for _, Tabbox in SubTab.Tabboxes do
+                    if Tabbox.Destroy then
+                        Tabbox:Destroy()
+                    end
+                end
+                table.clear(SubTab.Tabboxes)
+
+                for _, DepGroupbox in SubTab.DependencyGroupboxes do
+                    if DepGroupbox.Destroy then
+                        DepGroupbox:Destroy()
+                    end
+                end
+
+                Library:RemoveFromRegistry(ButtonLabel)
+                SubCanvas:Destroy()
+                Button:Destroy()
+
+                if Tab.ActiveSubTab == SubTab then
+                    Tab.ActiveSubTab = nil
+
+                    --// The button it was sitting under is gone
+                    if SubTabUnderline then
+                        SubTabUnderline.Visible = false
+                    end
+                end
+                Tab.SubTabs[SubName] = nil
+            end
+
+            --// Execution \\--
+            Button.MouseEnter:Connect(function()
+                SubTab:Hover(true)
+            end)
+            Button.MouseLeave:Connect(function()
+                SubTab:Hover(false)
+            end)
+            Button.MouseButton1Click:Connect(function()
+                SubTab:Show()
+            end)
+
+            Tab.SubTabs[SubName] = SubTab
+
+            --// Mirror row in the sidebar, when the window asked for nested sub tabs
+            SubTab.SidebarEntry = CreateSidebarEntry(SubTab, SubName, SubIcon)
+
+            if not Tab.ActiveSubTab then
+                SubTab:Show()
+            else
+                SubTab:RefreshSides()
+            end
+
+            return SubTab
+        end
         function Tab:Hover(Hovering)
             if TabIcon then
                 if Tab._IconSpinTween then
@@ -18798,6 +21136,9 @@ function Library:CreateWindow(WindowInfo)
             task.delay(FadeTime, function()
                 MainFrame.Visible = Library.Toggled
                 Fading = false
+        if MiniFrame then
+            MiniFrame.Visible = Library.Toggled and Minimized
+        end
             end)
         else
             MainFrame.Visible = Library.Toggled
@@ -19032,6 +21373,11 @@ function Library:CreateWindow(WindowInfo)
         Window:SetGUITransparency(true)
     end
 
+
+    --// AutoMinimize: start collapsed when requested and minimizable.
+    if WindowInfo.AutoMinimize and WindowInfo.Minimizable then
+        Window:SetMinimized(true)
+    end
     return Window
 end
 
