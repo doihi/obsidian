@@ -4479,6 +4479,20 @@ local TooltipPopScale = New("UIScale", {
     Scale = 1,
     Parent = TooltipLabel,
 })
+TooltipLabel:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+    if Library.Unloaded then
+        return
+    end
+
+    local X, _ = Library:GetTextBounds(
+        TooltipLabel.Text,
+        TooltipLabel.FontFace,
+        TooltipLabel.TextSize,
+        (workspace.CurrentCamera.ViewportSize.X - TooltipLabel.AbsolutePosition.X - 8) / Library.DPIScale
+    )
+
+    TooltipLabel.Size = UDim2.fromOffset(X + 8, 0)
+end)
 --// Smooth pop animation \\--
 local TOOLTIP_SHOW_TWEEN = TweenInfo.new(0.22, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 local TOOLTIP_HIDE_TWEEN = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -15402,6 +15416,7 @@ function Library:CreateWindow(WindowInfo)
             end
 
             local ShouldShow = HasBackgroundImage and MainFrame.Visible
+                and Library.Scheme.BackgroundImageEnabled ~= false
             BackgroundImage.Visible = ShouldShow
 
             if not ShouldShow then
@@ -15571,11 +15586,15 @@ function Library:CreateWindow(WindowInfo)
         })
 
         --// Top Right Bar \\--
+        --// Extra room reserved at the right of the top bar for the notification bell
+        --// and (when enabled) the minimize button, which sit beside the move icon
+        --// rather than in the search row
+        local RightBarInset = (WindowInfo.Minimizable and 28 or 0) + 30
         RightWrapper = New("Frame", {
             AnchorPoint = Vector2.new(1, 0.5),
             BackgroundTransparency = 1,
-            Position = UDim2.new(1, -49, 0.5, 0),
-            Size = UDim2.new(1, -InitialLeftWidth - 57 - 1, 1, -16),
+            Position = UDim2.new(1, -49 - RightBarInset, 0.5, 0),
+            Size = UDim2.new(1, -InitialLeftWidth - 57 - RightBarInset - 1, 1, -16),
             Parent = TopBar,
         })
 
