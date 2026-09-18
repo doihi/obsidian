@@ -21191,7 +21191,23 @@ function Library:CreateWindow(WindowInfo)
             ModalElement.Modal = Library.Toggled
         end
 
-        if not Library.Toggled then
+        if Library.Toggled and not Library.IsMobile then
+            local ShowCursorBinding = Library.ShowCursorBinding
+            Library.OriginalMouseIconEnabled = UserInputService.MouseIconEnabled
+
+            pcall(function() RunService:UnbindFromRenderStep(ShowCursorBinding) end)
+            RunService:BindToRenderStep(ShowCursorBinding, Enum.RenderPriority.Last.Value, function()
+                UserInputService.MouseIconEnabled = not Library.ShowCustomCursor
+
+                Cursor.Position = UDim2.fromOffset(Mouse.X, Mouse.Y)
+                Cursor.Visible = Library.ShowCustomCursor
+
+                if Library.Unloaded == true or not (Library.Toggled and ScreenGui and ScreenGui.Parent) then
+                    RestoreMouseIcon()
+                end
+            end)
+        elseif not Library.Toggled then
+            RestoreMouseIcon()
             TooltipLabel.Visible = false
 
             for _, Option in Library.Options do
