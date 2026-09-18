@@ -1495,7 +1495,7 @@ local function ApplySearchToTab(Tab, Search)
 
     return HasVisible, BestScore
 end
-local function ResetTab(Tab)
+function ResetTab(Tab)
     if not Tab then
         return
     end
@@ -2796,6 +2796,23 @@ local SUBTAB_HOVER_TWEEN = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.Easin
 local SUBTAB_SIDEBAR_INDENT = 30
 --// Reserved for the row's icon, kept even when it has none so labels stay aligned
 local SUBTAB_SIDEBAR_ICON_COLUMN = 20
+
+--// Expanded dropdown panel open and close
+local DROPDOWN_EXPAND_TWEEN = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+--// Slider ball: grows when hovered or dragged, on a smooth in-out curve. It is
+--// wider than the bar in both states, so it sits proud of the track.
+local SLIDER_BAR_HEIGHT = 16
+local SLIDER_BALL_SIZE = 18
+local SLIDER_BALL_SIZE_ACTIVE = 24
+local SLIDER_BALL_TWEEN = TweenInfo.new(0.16, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+--// Room above and below the bar for the ball to overflow into
+local SLIDER_BALL_MARGIN = math.ceil((SLIDER_BALL_SIZE_ACTIVE - SLIDER_BAR_HEIGHT) / 2)
+--// The track ramps the opposite way to the switch: lighter at the left, darker
+--// to the right, so the filled part always reads brighter than what follows it
+local SLIDER_TRACK_GRADIENT_FROM = Color3.fromRGB(138, 138, 138)
+local SLIDER_TRACK_GRADIENT_TO = Color3.fromRGB(64, 64, 64)
+
 --// Sub tab content always swipes from the bottom, independent of Library.TabSwipeFrom
 local SUB_TAB_SWIPE_FROM = "bottom"
 
@@ -17761,6 +17778,7 @@ function Library:CreateWindow(WindowInfo)
         local SidebarListTween = nil
         local SidebarEntries = {}
         local Expanded = false
+        local TabChevron = nil
 
         Icon = Library:GetCustomIcon(Icon)
         do
@@ -18307,6 +18325,12 @@ function Library:CreateWindow(WindowInfo)
             }
 
             function Tabbox:UpdateCorners()
+
+                for _, Tab in Tabbox.Tabs do
+                    Tab:UpdateCorners()
+                end
+            end
+
             --// Ported from white558: slide accent underline under active tab \--
             --// Slide the accent underline under the given tab button. Uses the
             --// button's laid-out rect (flex-filled), so it stays correct for any
@@ -18350,11 +18374,6 @@ function Library:CreateWindow(WindowInfo)
                     end
                 end)
             )
-
-                for _, Tab in Tabbox.Tabs do
-                    Tab:UpdateCorners()
-                end
-            end
 
             function Tabbox:Resize()
                 if Tabbox.ActiveTab then
