@@ -5879,12 +5879,12 @@ do
         })
 
         local ColorPickerCorner = New("UICorner", {
-            TopLeftRadius = UDim.new(0, Library.CornerRadius / 2),
-            TopRightRadius = UDim.new(0, Library.CornerRadius / 2),
-            BottomRightRadius = UDim.new(0, Library.CornerRadius / 2),
-            BottomLeftRadius = UDim.new(0, Library.CornerRadius / 2),
+            TopLeftRadius = UDim.new(0, 2),
+            TopRightRadius = UDim.new(0, 2),
+            BottomRightRadius = UDim.new(0, 2),
+            BottomLeftRadius = UDim.new(0, 2),
             Parent = Holder,
-        }); table.insert(Library.SpecificCorners, ColorPickerCorner)
+        })
 
         local HolderTransparency = New("ImageLabel", {
             Image = CustomImageManager.GetAsset("TransparencyTexture"),
@@ -5896,13 +5896,10 @@ do
             Parent = Holder,
         })
 
-        table.insert(
-            Library.Corners,
-            New("UICorner", {
-                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-                Parent = HolderTransparency,
-            })
-        )
+        New("UICorner", {
+            CornerRadius = UDim.new(0, 2),
+            Parent = HolderTransparency,
+        })
 
         --// Color Menu \\--
         local MapSize = Library.IsMobile and 140 or 200
@@ -5922,12 +5919,12 @@ do
             end,
             1, function(Active: boolean)
                 local Half = UDim.new(0, Library.CornerRadius / 2)
-                local Zero = UDim.new(0, 0)
+                local Zero = UDim.new(0, 2)
 
-                ColorPickerCorner.TopLeftRadius = Half
-                ColorPickerCorner.TopRightRadius = Half
-                ColorPickerCorner.BottomRightRadius = Active and Zero or Half
-                ColorPickerCorner.BottomLeftRadius = Active and Zero or Half
+                ColorPickerCorner.TopLeftRadius = Zero
+                ColorPickerCorner.TopRightRadius = Zero
+                ColorPickerCorner.BottomRightRadius = Zero
+                ColorPickerCorner.BottomLeftRadius = Zero
 
                 local MenuCorner = ColorMenu and ColorMenu.Corner
                 if MenuCorner then
@@ -6059,7 +6056,7 @@ do
             Parent = SatVipMap,
         })
         New("UICorner", {
-            CornerRadius = UDim.new(1, 0),
+            CornerRadius = UDim.new(0, 2),
             Parent = SatVibCursor,
         })
         New("UIStroke", {
@@ -6300,15 +6297,15 @@ do
         --// Context Menu \\--
         local ContextMenu
         ContextMenu = Library:AddContextMenu(Holder, UDim2.fromOffset(93, 0), function()
-            return { Holder.AbsoluteSize.X + 1.5, 0.5 }
-        end, 1, function(Active: boolean)
+                return { Holder.AbsoluteSize.X + 1.5, 0.5 }
+            end, 1, function(Active: boolean)
             local Half = UDim.new(0, Library.CornerRadius / 2)
-            local Zero = UDim.new(0, 0)
+            local Zero = UDim.new(0, 2)
 
-            ColorPickerCorner.TopLeftRadius = Half
-            ColorPickerCorner.BottomLeftRadius = Half
-            ColorPickerCorner.TopRightRadius = Active and Zero or Half
-            ColorPickerCorner.BottomRightRadius = Active and Zero or Half
+            ColorPickerCorner.TopLeftRadius = Zero
+            ColorPickerCorner.BottomLeftRadius = Zero
+            ColorPickerCorner.TopRightRadius = Zero
+            ColorPickerCorner.BottomRightRadius = Zero
 
             local MenuCorner = ContextMenu and ContextMenu.Corner
             if MenuCorner then
@@ -7936,13 +7933,10 @@ do
             SizeConstraint = Enum.SizeConstraint.RelativeYY,
             Parent = Button,
         })
-        table.insert(
-            Library.Corners,
-            New("UICorner", {
-                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
-                Parent = Checkbox,
-            })
-        )
+        New("UICorner", {
+            CornerRadius = UDim.new(0, 2),
+            Parent = Checkbox,
+        })
 
         local CheckboxStroke = New("UIStroke", {
             Color = "OutlineColor",
@@ -8195,7 +8189,7 @@ do
             Parent = Button,
         })
         New("UICorner", {
-            CornerRadius = UDim.new(1, 0),
+            CornerRadius = UDim.new(0, 2),
             Parent = Switch,
         })
         New("UIPadding", {
@@ -8217,7 +8211,7 @@ do
             Parent = Switch,
         })
         New("UICorner", {
-            CornerRadius = UDim.new(1, 0),
+            CornerRadius = UDim.new(0, 2),
             Parent = Ball,
         })
 
