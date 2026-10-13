@@ -15423,8 +15423,16 @@ function Library:CreateWindow(WindowInfo)
                 CornerRadius = UDim.new(0, 6),
                 Parent = TabSelectBox,
             })
+            New("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 25)),
+                }),
+                Rotation = 90,
+                Parent = TabSelectBox,
+            })
             TabSelectBoxStroke = New("UIStroke", {
-                Color = Color3.fromRGB(60, 60, 60),
+                Color = Color3.fromRGB(255, 255, 255),
                 Transparency = 1,
                 Parent = TabSelectBox,
             })
