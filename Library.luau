@@ -15334,13 +15334,32 @@ function Library:CreateWindow(WindowInfo)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
 
-    --// Shared tab selection box (slides smoothly between tab icons) \\--
+    --// Shared tab selection box + indicator centering (measured from the actual icon) \\--
     local TabSelectBox
     local TabSelectBoxStroke
     local TabSelectBoxTab
     local TabSelectBoxTween
 
-    local function GetTabSelectBoxRect()
+    local function GetSelectBoxScale()
+        local Scale = Library.DPIScale
+        if typeof(Scale) ~= "number" or Scale == 0 then
+            Scale = 1
+        end
+        return Scale
+    end
+
+    local function GetTabSelectBoxRect(Icon)
+        local Margin = 4
+
+        if Icon and Icon.Parent then
+            local Scale = GetSelectBoxScale()
+            local W = Icon.AbsoluteSize.X / Scale
+            local H = Icon.AbsoluteSize.Y / Scale
+            if W > 0 and H > 0 then
+                return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(W + Margin * 2, H + Margin * 2)
+            end
+        end
+
         local PadTop = IsCompact and 6 or 11
         local PadBottom = IsCompact and 6 or 11
         local Side = 40 - PadTop - PadBottom
@@ -15348,8 +15367,18 @@ function Library:CreateWindow(WindowInfo)
             return nil, nil
         end
 
-        local Margin = 2
         return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(Side + Margin * 2, Side + Margin * 2)
+    end
+
+    local function GetTabIndicatorLeft(Icon)
+        local PadLeft = IsCompact and 6 or 12
+        local IconW = 40 - (IsCompact and 12 or 22)
+
+        if Icon and Icon.Parent and Icon.AbsoluteSize.X > 0 then
+            IconW = Icon.AbsoluteSize.X / GetSelectBoxScale()
+        end
+
+        return PadLeft + (IconW - TabButtonsStyle.IndicatorHeight) / 2
     end
 
     local function HideTabSelectBox()
@@ -15380,7 +15409,7 @@ function Library:CreateWindow(WindowInfo)
             return
         end
 
-        local Pos, Size = GetTabSelectBoxRect()
+        local Pos, Size = GetTabSelectBoxRect(Icon)
         if not Pos then
             return
         end
@@ -15392,14 +15421,6 @@ function Library:CreateWindow(WindowInfo)
             })
             New("UICorner", {
                 CornerRadius = UDim.new(0, 6),
-                Parent = TabSelectBox,
-            })
-            New("UIGradient", {
-                Color = ColorSequence.new({
-                    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-                    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 25)),
-                }),
-                Rotation = 90,
                 Parent = TabSelectBox,
             })
             TabSelectBoxStroke = New("UIStroke", {
@@ -15470,7 +15491,7 @@ function Library:CreateWindow(WindowInfo)
             return
         end
 
-        local Pos, Size = GetTabSelectBoxRect()
+        local Pos, Size = GetTabSelectBoxRect(Tab and Tab.IconRef)
         if not Pos then
             return
         end
@@ -17690,6 +17711,10 @@ function Library:CreateWindow(WindowInfo)
         end
 
         for _, Button in Library.TabButtons do
+            if Button.Indicator then
+                Button.Indicator.Position = UDim2.new(0, GetTabIndicatorLeft(Button.Icon), 1, -6)
+            end
+
             if not Button.Icon then
                 continue
             end
@@ -17970,7 +17995,7 @@ function Library:CreateWindow(WindowInfo)
                     AnchorPoint = Vector2.new(0, 1),
                     BackgroundColor3 = "AccentColor",
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 12, 1, -6),
+                    Position = UDim2.new(0, IsCompact and 10 or 11, 1, -6),
                     Size = UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
                     ZIndex = 2,
                     Parent = TabButton,
@@ -18016,12 +18041,17 @@ function Library:CreateWindow(WindowInfo)
                     Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
+
+                if TabIndicator then
+                    TabIndicator.Position = UDim2.new(0, GetTabIndicatorLeft(TabIcon), 1, -6)
+                end
             end
 
             table.insert(Library.TabButtons, {
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
+                Indicator = TabIndicator,
             })
 
             --// Tab Container \\--
@@ -20257,7 +20287,6 @@ function Library:CreateWindow(WindowInfo)
                 })
                 Tab._IconSpinTween:Play()
             end
-            --// Shared select box stays; it slides to the next tab on Show \\--
 
             Library:PlayTabAnimation(Tab, false)
             Window:HideTabInfo()
@@ -20437,7 +20466,7 @@ function Library:CreateWindow(WindowInfo)
                     AnchorPoint = Vector2.new(0, 1),
                     BackgroundColor3 = "AccentColor",
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 12, 1, -6),
+                    Position = UDim2.new(0, IsCompact and 10 or 11, 1, -6),
                     Size = UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
                     ZIndex = 2,
                     Parent = TabButton,
@@ -20484,12 +20513,17 @@ function Library:CreateWindow(WindowInfo)
                     Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
+
+                if TabIndicator then
+                    TabIndicator.Position = UDim2.new(0, GetTabIndicatorLeft(TabIcon), 1, -6)
+                end
             end
 
             table.insert(Library.TabButtons, {
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
+                Indicator = TabIndicator,
             })
 
             --// Tab Container \\--
@@ -20761,7 +20795,6 @@ function Library:CreateWindow(WindowInfo)
                 })
                 Tab._IconSpinTween:Play()
             end
-            --// Shared select box stays; it slides to the next tab on Show \\--
 
             Library:PlayTabAnimation(Tab, false)
             Window:HideTabInfo()
