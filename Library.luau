@@ -17540,16 +17540,22 @@ function Library:CreateWindow(WindowInfo)
         end
 
         for _, Button in Library.TabButtons do
-            if not Button.Icon then
-                continue
+            if Button.Label then
+                Button.Label.Visible = not IsCompact
             end
 
-            Button.Label.Visible = not IsCompact
-            Button.Padding.PaddingBottom = UDim.new(0, IsCompact and 6 or 11)
-            Button.Padding.PaddingLeft = UDim.new(0, IsCompact and 6 or 12)
-            Button.Padding.PaddingRight = UDim.new(0, IsCompact and 6 or 12)
-            Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
-            Button.Icon.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
+            if Button.Padding then
+                Button.Padding.PaddingBottom = UDim.new(0, IsCompact and 6 or 11)
+                Button.Padding.PaddingLeft = UDim.new(0, IsCompact and 6 or 12)
+                Button.Padding.PaddingRight = UDim.new(0, IsCompact and 6 or 12)
+                Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
+            end
+
+            if Button.IconBox then
+                Button.IconBox.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
+            elseif Button.Icon then
+                Button.Icon.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
+            end
         end
     end
 
@@ -17773,6 +17779,8 @@ function Library:CreateWindow(WindowInfo)
         local TabIndicator
         local TabLabel
         local TabIcon
+        local TabIconBox
+        local TabIconBoxStroke
 
         local TabContainer
         local TabLeft
@@ -17813,11 +17821,11 @@ function Library:CreateWindow(WindowInfo)
 
             if TabButtonsStyle.Indicator then
                 TabIndicator = New("Frame", {
-                    AnchorPoint = Vector2.new(1, 0.5),
+                    AnchorPoint = Vector2.new(0, 1),
                     BackgroundColor3 = "AccentColor",
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, -2, 0.5, 0),
-                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight),
+                    Position = UDim2.new(0, 12, 1, -6),
+                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
                     Parent = TabButton,
                 })
 
@@ -17852,21 +17860,59 @@ function Library:CreateWindow(WindowInfo)
             })
 
             if Icon then
+                TabIconBox = New("Frame", {
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
+                    Parent = ButtonHolder,
+                })
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, 6),
+                    Parent = TabIconBox,
+                })
+                New("UIPadding", {
+                    PaddingBottom = UDim.new(0, 3),
+                    PaddingLeft = UDim.new(0, 3),
+                    PaddingRight = UDim.new(0, 3),
+                    PaddingTop = UDim.new(0, 3),
+                    Parent = TabIconBox,
+                })
+                New("UIGradient", {
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 25)),
+                    }),
+                    Rotation = 90,
+                    Parent = TabIconBox,
+                })
+                TabIconBoxStroke = New("UIStroke", {
+                    Color = Color3.fromRGB(60, 60, 60),
+                    Transparency = 1,
+                    Parent = TabIconBox,
+                })
                 TabIcon = New("ImageLabel", {
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
                     ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
-                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
-                    Parent = ButtonHolder,
+                    Parent = TabIconBox,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
+
+                if TabIndicator then
+                    TabIndicator.AnchorPoint = Vector2.new(0.5, 0)
+                    TabIndicator.Position = UDim2.new(0.5, 0, 1, 1)
+                    TabIndicator.Parent = TabIcon
+                end
             end
 
             table.insert(Library.TabButtons, {
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
+                IconBox = TabIconBox,
+                IconBoxStroke = TabIconBoxStroke,
             })
 
             --// Tab Container \\--
@@ -20060,6 +20106,16 @@ function Library:CreateWindow(WindowInfo)
                     ImageTransparency = 0,
                 }):Play()
             end
+            if TabIconBox then
+                TweenService:Create(TabIconBox, Library.TweenInfo, {
+                    BackgroundTransparency = 0,
+                }):Play()
+            end
+            if TabIconBoxStroke then
+                TweenService:Create(TabIconBoxStroke, Library.TweenInfo, {
+                    Transparency = 0,
+                }):Play()
+            end
 
             if Description then
                 Window:ShowTabInfo(Name, Description)
@@ -20093,6 +20149,16 @@ function Library:CreateWindow(WindowInfo)
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0.5,
+                }):Play()
+            end
+            if TabIconBox then
+                TweenService:Create(TabIconBox, Library.TweenInfo, {
+                    BackgroundTransparency = 1,
+                }):Play()
+            end
+            if TabIconBoxStroke then
+                TweenService:Create(TabIconBoxStroke, Library.TweenInfo, {
+                    Transparency = 1,
                 }):Play()
             end
 
@@ -20234,6 +20300,8 @@ function Library:CreateWindow(WindowInfo)
         local TabIndicator
         local TabLabel
         local TabIcon
+        local TabIconBox
+        local TabIconBoxStroke
 
         local TabContainer
 
@@ -20254,11 +20322,11 @@ function Library:CreateWindow(WindowInfo)
 
             if TabButtonsStyle.Indicator then
                 TabIndicator = New("Frame", {
-                    AnchorPoint = Vector2.new(1, 0.5),
+                    AnchorPoint = Vector2.new(0, 1),
                     BackgroundColor3 = "AccentColor",
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, -2, 0.5, 0),
-                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight),
+                    Position = UDim2.new(0, 12, 1, -6),
+                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
                     Parent = TabButton,
                 })
 
@@ -20294,21 +20362,59 @@ function Library:CreateWindow(WindowInfo)
             })
 
             if Icon then
+                TabIconBox = New("Frame", {
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 1),
+                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
+                    Parent = ButtonHolder,
+                })
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, 6),
+                    Parent = TabIconBox,
+                })
+                New("UIPadding", {
+                    PaddingBottom = UDim.new(0, 3),
+                    PaddingLeft = UDim.new(0, 3),
+                    PaddingRight = UDim.new(0, 3),
+                    PaddingTop = UDim.new(0, 3),
+                    Parent = TabIconBox,
+                })
+                New("UIGradient", {
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 25)),
+                    }),
+                    Rotation = 90,
+                    Parent = TabIconBox,
+                })
+                TabIconBoxStroke = New("UIStroke", {
+                    Color = Color3.fromRGB(60, 60, 60),
+                    Transparency = 1,
+                    Parent = TabIconBox,
+                })
                 TabIcon = New("ImageLabel", {
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
                     ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
-                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
-                    Parent = ButtonHolder,
+                    Parent = TabIconBox,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
+
+                if TabIndicator then
+                    TabIndicator.AnchorPoint = Vector2.new(0.5, 0)
+                    TabIndicator.Position = UDim2.new(0.5, 0, 1, 1)
+                    TabIndicator.Parent = TabIcon
+                end
             end
 
             table.insert(Library.TabButtons, {
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
+                IconBox = TabIconBox,
+                IconBoxStroke = TabIconBoxStroke,
             })
 
             --// Tab Container \\--
@@ -20526,6 +20632,16 @@ function Library:CreateWindow(WindowInfo)
                     ImageTransparency = 0,
                 }):Play()
             end
+            if TabIconBox then
+                TweenService:Create(TabIconBox, Library.TweenInfo, {
+                    BackgroundTransparency = 0,
+                }):Play()
+            end
+            if TabIconBoxStroke then
+                TweenService:Create(TabIconBoxStroke, Library.TweenInfo, {
+                    Transparency = 0,
+                }):Play()
+            end
 
             Library:PlayTabAnimation(Tab, true)
 
@@ -20560,6 +20676,16 @@ function Library:CreateWindow(WindowInfo)
             if TabIcon then
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0.5,
+                }):Play()
+            end
+            if TabIconBox then
+                TweenService:Create(TabIconBox, Library.TweenInfo, {
+                    BackgroundTransparency = 1,
+                }):Play()
+            end
+            if TabIconBoxStroke then
+                TweenService:Create(TabIconBoxStroke, Library.TweenInfo, {
+                    Transparency = 1,
                 }):Play()
             end
 
