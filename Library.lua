@@ -17958,6 +17958,8 @@ function Library:CreateWindow(WindowInfo)
         local TabIndicator
         local TabLabel
         local TabIcon
+        local TabIconStroke
+        local TabIconGlow
         local ButtonHolder
         local ButtonPadding
 
@@ -18051,23 +18053,24 @@ function Library:CreateWindow(WindowInfo)
                 Library:ApplyLucideIcon(TabIcon, Icon)
 
                 --// White border around the tab icon
-                local TabIconStroke = New("UIStroke", {
+                TabIconStroke = New("UIStroke", {
                     Color = "WhiteColor",
                     Thickness = 1.5,
-                    Transparency = 0,
+                    Transparency = 1,
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
                     Parent = TabIcon,
                 })
                 Library:AddToRegistry(TabIconStroke, { Color = "WhiteColor" })
 
                 --// Static accent gradient glow around the white border
-                local TabIconGlow = New("ImageLabel", {
+                TabIconGlow = New("ImageLabel", {
                     Active = false,
                     AnchorPoint = Vector2.new(0.5, 0.5),
                     BackgroundTransparency = 1,
                     Image = "rbxassetid://6014261993",
                     ImageColor3 = "AccentColor",
                     ImageTransparency = 0.5,
+                    Visible = false,
                     Position = UDim2.fromScale(0.5, 0.5),
                     ScaleType = Enum.ScaleType.Slice,
                     Size = UDim2.fromScale(1.7, 1.7),
@@ -20294,6 +20297,14 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0,
                 }):Play()
+                if TabIconStroke then
+                    TweenService:Create(TabIconStroke, Library.TweenInfo, {
+                        Transparency = 0,
+                    }):Play()
+                end
+                if TabIconGlow then
+                    TabIconGlow.Visible = true
+                end
                 if Tab._IconSpinTween then
                     StopTween(Tab._IconSpinTween)
                 end
@@ -20337,6 +20348,14 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0.5,
                 }):Play()
+                if TabIconStroke then
+                    TweenService:Create(TabIconStroke, Library.TweenInfo, {
+                        Transparency = 1,
+                    }):Play()
+                end
+                if TabIconGlow then
+                    TabIconGlow.Visible = false
+                end
                 if Tab._IconSpinTween then
                     StopTween(Tab._IconSpinTween)
                 end
@@ -20499,6 +20518,8 @@ function Library:CreateWindow(WindowInfo)
         local TabIndicator
         local TabLabel
         local TabIcon
+        local TabIconStroke
+        local TabIconGlow
         local ButtonHolder
         local ButtonPadding
 
@@ -20573,23 +20594,24 @@ function Library:CreateWindow(WindowInfo)
                 Library:ApplyLucideIcon(TabIcon, Icon)
 
                 --// White border around the tab icon
-                local TabIconStroke = New("UIStroke", {
+                TabIconStroke = New("UIStroke", {
                     Color = "WhiteColor",
                     Thickness = 1.5,
-                    Transparency = 0,
+                    Transparency = 1,
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
                     Parent = TabIcon,
                 })
                 Library:AddToRegistry(TabIconStroke, { Color = "WhiteColor" })
 
                 --// Static accent gradient glow around the white border
-                local TabIconGlow = New("ImageLabel", {
+                TabIconGlow = New("ImageLabel", {
                     Active = false,
                     AnchorPoint = Vector2.new(0.5, 0.5),
                     BackgroundTransparency = 1,
                     Image = "rbxassetid://6014261993",
                     ImageColor3 = "AccentColor",
                     ImageTransparency = 0.5,
+                    Visible = false,
                     Position = UDim2.fromScale(0.5, 0.5),
                     ScaleType = Enum.ScaleType.Slice,
                     Size = UDim2.fromScale(1.7, 1.7),
@@ -20851,6 +20873,14 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0,
                 }):Play()
+                if TabIconStroke then
+                    TweenService:Create(TabIconStroke, Library.TweenInfo, {
+                        Transparency = 0,
+                    }):Play()
+                end
+                if TabIconGlow then
+                    TabIconGlow.Visible = true
+                end
                 if Tab._IconSpinTween then
                     StopTween(Tab._IconSpinTween)
                 end
@@ -20895,6 +20925,14 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0.5,
                 }):Play()
+                if TabIconStroke then
+                    TweenService:Create(TabIconStroke, Library.TweenInfo, {
+                        Transparency = 1,
+                    }):Play()
+                end
+                if TabIconGlow then
+                    TabIconGlow.Visible = false
+                end
                 if Tab._IconSpinTween then
                     StopTween(Tab._IconSpinTween)
                 end
