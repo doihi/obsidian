@@ -1767,21 +1767,28 @@ function Library:AddGlow(Frame, Properties)
     local ZIndexOffset = Properties.ZIndexOffset or -1
 
     -- 角丸フレームの縁になじむよう、少し大きいサイズで放射グラデーション画像を重ねる
-    local Glow = Library.New("ImageLabel", {
-        Name = "Glow",
-        Parent = Frame,
-        BackgroundTransparency = 1,
-        Image = "rbxassetid://5028857472", -- 中心が不透明・外周が透明な放射グラデーション(汎用グローテクスチャ)
-        ImageColor3 = Color, -- 文字列なら Scheme 経由で Registry に登録される(FillInstance 準拠)
-        ImageTransparency = 1 - Intensity,
-        ScaleType = Enum.ScaleType.Slice,
-        SliceCenter = Rect.new(128, 128, 128, 128),
-        SliceScale = 1,
-        ZIndex = Frame.ZIndex + ZIndexOffset,
-        Size = UDim2.new(1, Size * 2, 1, Size * 2),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-    })
+    local Glow = Instance.new("ImageLabel")
+    Glow.Name = "Glow"
+    Glow.Parent = Frame
+    Glow.BackgroundTransparency = 1
+    Glow.Image = "rbxassetid://5028857472"
+    Glow.ImageTransparency = 1 - Intensity
+    Glow.ScaleType = Enum.ScaleType.Slice
+    Glow.SliceCenter = Rect.new(128, 128, 128, 128)
+    Glow.SliceScale = 1
+    Glow.ZIndex = Frame.ZIndex + ZIndexOffset
+    Glow.Size = UDim2.new(1, Size * 2, 1, Size * 2)
+    Glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Glow.AnchorPoint = Vector2.new(0.5, 0.5)
+
+    if typeof(Color) == "Color3" then
+        Glow.ImageColor3 = Color
+    elseif typeof(Color) == "string" then
+        local SchemeValue = GetSchemeValue(Color)
+        if SchemeValue then
+            Glow.ImageColor3 = SchemeValue
+        end
+    end
 
     -- フレームの角丸と同じ丸みをグローにも適用(タイトに輪郭へ沿わせるため)
     local CornerRadius = Properties.CornerRadius
@@ -1790,10 +1797,9 @@ function Library:AddGlow(Frame, Properties)
         CornerRadius = ExistingCorner and ExistingCorner.CornerRadius or UDim.new(0, Library.CornerRadius or 6)
     end
 
-    Library.New("UICorner", {
-        Parent = Glow,
-        CornerRadius = CornerRadius,
-    })
+    local Corner = Instance.new("UICorner")
+    Corner.Parent = Glow
+    Corner.CornerRadius = CornerRadius
 
     -- テーマ切り替え時に色を追従させたい場合は Registry に登録
     if typeof(Color) == "string" then
