@@ -15478,8 +15478,7 @@ function Library:CreateWindow(WindowInfo)
                 Image = "rbxassetid://6014261993",
                 ImageColor3 = Color3.fromRGB(255, 255, 255),
                 ImageTransparency = 0,
-                ScaleType = Enum.ScaleType.Slice,
-                SliceCenter = Rect.new(49, 49, 450, 450),
+                ScaleType = Enum.ScaleType.Stretch,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
                 Parent = Holder,
@@ -15487,11 +15486,11 @@ function Library:CreateWindow(WindowInfo)
             New("UIGradient", {
                 Color = ColorSequence.new({
                     ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-                    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 235, 255)),
                 }),
                 Transparency = NumberSequence.new({
                     NumberSequenceKeypoint.new(0, 0),
-                    NumberSequenceKeypoint.new(1, 0.85),
+                    NumberSequenceKeypoint.new(1, 0.92),
                 }),
                 Rotation = 90,
                 Parent = TabSelectBoxGlow,
@@ -15511,13 +15510,13 @@ function Library:CreateWindow(WindowInfo)
         if Instant or not StartPos then
             TabSelectBox.Position = Pos
             TabSelectBox.Size = Size
-            TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 35, Pos.Y.Offset - 35)
-            TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 70, Size.Y.Offset + 70)
+            TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 4, Pos.Y.Offset - 4)
+            TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 8, Size.Y.Offset + 8)
         else
             TabSelectBox.Position = StartPos
             TabSelectBox.Size = StartSize
-            TabSelectBoxGlow.Position = UDim2.fromOffset(StartPos.X.Offset - 35, StartPos.Y.Offset - 35)
-            TabSelectBoxGlow.Size = UDim2.fromOffset(StartSize.X.Offset + 70, StartSize.Y.Offset + 70)
+            TabSelectBoxGlow.Position = UDim2.fromOffset(StartPos.X.Offset - 4, StartPos.Y.Offset - 4)
+            TabSelectBoxGlow.Size = UDim2.fromOffset(StartSize.X.Offset + 8, StartSize.Y.Offset + 8)
             TabSelectBoxTween = TweenService:Create(
                 TabSelectBox,
                 TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -15530,8 +15529,8 @@ function Library:CreateWindow(WindowInfo)
                 TabSelectBoxGlow,
                 TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
                 {
-                    Position = UDim2.fromOffset(Pos.X.Offset - 35, Pos.Y.Offset - 35),
-                    Size = UDim2.fromOffset(Size.X.Offset + 70, Size.Y.Offset + 70),
+                    Position = UDim2.fromOffset(Pos.X.Offset - 4, Pos.Y.Offset - 4),
+                    Size = UDim2.fromOffset(Size.X.Offset + 8, Size.Y.Offset + 8),
                 }
             ):Play()
             TabSelectBoxTween:Play()
@@ -15558,8 +15557,8 @@ function Library:CreateWindow(WindowInfo)
         TabSelectBox.Position = Pos
         TabSelectBox.Size = Size
         if TabSelectBoxGlow then
-            TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 35, Pos.Y.Offset - 35)
-            TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 70, Size.Y.Offset + 70)
+            TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 4, Pos.Y.Offset - 4)
+            TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 8, Size.Y.Offset + 8)
         end
     end
 
