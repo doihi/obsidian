@@ -1767,7 +1767,7 @@ function Library:AddGlow(Frame, Properties)
     local ZIndexOffset = Properties.ZIndexOffset or -1
 
     -- 角丸フレームの縁になじむよう、少し大きいサイズで放射グラデーション画像を重ねる
-    local Glow = New("ImageLabel", {
+    local Glow = Library.New("ImageLabel", {
         Name = "Glow",
         Parent = Frame,
         BackgroundTransparency = 1,
@@ -1790,7 +1790,7 @@ function Library:AddGlow(Frame, Properties)
         CornerRadius = ExistingCorner and ExistingCorner.CornerRadius or UDim.new(0, Library.CornerRadius or 6)
     end
 
-    New("UICorner", {
+    Library.New("UICorner", {
         Parent = Glow,
         CornerRadius = CornerRadius,
     })
