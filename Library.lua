@@ -1758,6 +1758,52 @@ function Library:GetCustomIcon(IconName: string): any
     return nil
 end
 
+function Library:AddGlow(Frame, Properties)
+    Properties = Properties or {}
+
+    local Color       = Properties.Color or "AccentColor"
+    local Size         = Properties.Size or 10
+    local Intensity    = Properties.Intensity or 0.65
+    local ZIndexOffset = Properties.ZIndexOffset or -1
+
+    -- 角丸フレームの縁になじむよう、少し大きいサイズで放射グラデーション画像を重ねる
+    local Glow = New("ImageLabel", {
+        Name = "Glow",
+        Parent = Frame,
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://5028857472", -- 中心が不透明・外周が透明な放射グラデーション(汎用グローテクスチャ)
+        ImageColor3 = Color, -- 文字列なら Scheme 経由で Registry に登録される(FillInstance 準拠)
+        ImageTransparency = 1 - Intensity,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(128, 128, 128, 128),
+        SliceScale = 1,
+        ZIndex = Frame.ZIndex + ZIndexOffset,
+        Size = UDim2.new(1, Size * 2, 1, Size * 2),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+    })
+
+    -- フレームの角丸と同じ丸みをグローにも適用(タイトに輪郭へ沿わせるため)
+    local CornerRadius = Properties.CornerRadius
+    if not CornerRadius then
+        local ExistingCorner = Frame:FindFirstChildOfClass("UICorner")
+        CornerRadius = ExistingCorner and ExistingCorner.CornerRadius or UDim.new(0, Library.CornerRadius or 6)
+    end
+
+    New("UICorner", {
+        Parent = Glow,
+        CornerRadius = CornerRadius,
+    })
+
+    -- テーマ切り替え時に色を追従させたい場合は Registry に登録
+    if typeof(Color) == "string" then
+        Library.Registry[Glow] = Library.Registry[Glow] or {}
+        Library.Registry[Glow].ImageColor3 = Color
+    end
+
+    return Glow
+end
+
 function Library:ApplyLucideIcon(ImageGui: any, Icon: any, Rotation: number?)
     if not ImageGui or not Icon then
         return
@@ -1854,6 +1900,8 @@ local function New(ClassName: string, Properties: { [string]: any }): any
 
     return InstanceGG
 end
+
+Library.New = New
 
 --// Main Instances \\-
 local function SafeParentUI(Instance: Instance, Parent: Instance | () -> Instance)
@@ -15471,31 +15519,19 @@ function Library:CreateWindow(WindowInfo)
         TabSelectBox.Parent = Holder
         TabSelectBoxTab = Tab
 
-        if not TabSelectBoxGlow then
-            TabSelectBoxGlow = New("Frame", {
-                BackgroundTransparency = 1,
-                Visible = false,
-                ZIndex = TabSelectBox.ZIndex - 1,
-                Parent = Holder,
-            })
-            New("UICorner", {
+        if not TabSelectBoxGlow or not TabSelectBoxGlow.Parent then
+            TabSelectBoxGlow = Library:AddGlow(TabSelectBox, {
+                Color = "WhiteColor",
+                Size = 6,
+                Intensity = 0.65,
+                ZIndexOffset = -1,
                 CornerRadius = UDim.new(0, 12),
-                Parent = TabSelectBoxGlow,
-            })
-            New("UIStroke", {
-                Color = Color3.fromRGB(255, 255, 255),
-                Thickness = 6,
-                Transparency = 0.5,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-                Parent = TabSelectBoxGlow,
             })
         end
-        TabSelectBoxGlow.ZIndex = TabSelectBox.ZIndex - 1
-        TabSelectBoxGlow.Parent = Holder
         TabSelectBoxGlow.Visible = true
 
         TweenService:Create(TabSelectBox, Library.TweenInfo, {
-            BackgroundTransparency = 0,
+            BackgroundTransparency = 1,
         }):Play()
         TweenService:Create(TabSelectBoxStroke, Library.TweenInfo, {
             Transparency = 0,
@@ -15504,13 +15540,9 @@ function Library:CreateWindow(WindowInfo)
         if Instant or not StartPos then
             TabSelectBox.Position = Pos
             TabSelectBox.Size = Size
-            TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 6, Pos.Y.Offset - 6)
-            TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 12, Size.Y.Offset + 12)
         else
             TabSelectBox.Position = StartPos
             TabSelectBox.Size = StartSize
-            TabSelectBoxGlow.Position = UDim2.fromOffset(StartPos.X.Offset - 6, StartPos.Y.Offset - 6)
-            TabSelectBoxGlow.Size = UDim2.fromOffset(StartSize.X.Offset + 12, StartSize.Y.Offset + 12)
             TabSelectBoxTween = TweenService:Create(
                 TabSelectBox,
                 TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -15519,14 +15551,6 @@ function Library:CreateWindow(WindowInfo)
                     Size = Size,
                 }
             )
-            TweenService:Create(
-                TabSelectBoxGlow,
-                TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                {
-                    Position = UDim2.fromOffset(Pos.X.Offset - 6, Pos.Y.Offset - 4),
-                    Size = UDim2.fromOffset(Size.X.Offset + 12, Size.Y.Offset + 12),
-                }
-            ):Play()
             TabSelectBoxTween:Play()
         end
     end
@@ -15550,10 +15574,6 @@ function Library:CreateWindow(WindowInfo)
 
         TabSelectBox.Position = Pos
         TabSelectBox.Size = Size
-        if TabSelectBoxGlow then
-            TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 6, Pos.Y.Offset - 6)
-            TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 12, Size.Y.Offset + 12)
-        end
     end
 
     do
