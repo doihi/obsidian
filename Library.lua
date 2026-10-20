@@ -15472,18 +15472,23 @@ function Library:CreateWindow(WindowInfo)
         TabSelectBoxTab = Tab
 
         if not TabSelectBoxGlow then
-            TabSelectBoxGlow = New("ImageLabel", {
-                Active = false,
+            TabSelectBoxGlow = New("Frame", {
                 BackgroundTransparency = 1,
-                Image = "rbxassetid://6014261993",
-                ImageColor3 = Color3.fromRGB(255, 255, 255),
-                ImageTransparency = 0.5,
-                ScaleType = Enum.ScaleType.Stretch,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
                 Parent = Holder,
             })
-            --// No directional UIGradient: keep the glow uniform (shadow asset provides the shape)
+            New("UICorner", {
+                CornerRadius = UDim.new(0, 12),
+                Parent = TabSelectBoxGlow,
+            })
+            New("UIStroke", {
+                Color = Color3.fromRGB(255, 255, 255),
+                Thickness = 6,
+                Transparency = 0.5,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+                Parent = TabSelectBoxGlow,
+            })
         end
         TabSelectBoxGlow.ZIndex = TabSelectBox.ZIndex - 1
         TabSelectBoxGlow.Parent = Holder
