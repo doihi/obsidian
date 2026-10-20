@@ -7933,10 +7933,13 @@ do
             SizeConstraint = Enum.SizeConstraint.RelativeYY,
             Parent = Button,
         })
-        New("UICorner", {
-            CornerRadius = UDim.new(0, 2),
-            Parent = Checkbox,
-        })
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = Checkbox,
+            })
+        )
 
         local CheckboxStroke = New("UIStroke", {
             Color = "OutlineColor",
@@ -8189,7 +8192,7 @@ do
             Parent = Button,
         })
         New("UICorner", {
-            CornerRadius = UDim.new(0, 2),
+            CornerRadius = UDim.new(1, 0),
             Parent = Switch,
         })
         New("UIPadding", {
@@ -8211,7 +8214,7 @@ do
             Parent = Switch,
         })
         New("UICorner", {
-            CornerRadius = UDim.new(0, 2),
+            CornerRadius = UDim.new(1, 0),
             Parent = Ball,
         })
 
@@ -15331,6 +15334,185 @@ function Library:CreateWindow(WindowInfo)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
 
+    --// Shared tab selection box + indicator centering (measured from the actual icon) \\--
+    local TabSelectBox
+    local TabSelectBoxStroke
+    local TabSelectBoxTab
+    local TabSelectBoxTween
+
+    local function GetSelectBoxScale()
+        local Scale = Library.DPIScale
+        if typeof(Scale) ~= "number" or Scale == 0 then
+            Scale = 1
+        end
+        return Scale
+    end
+
+    local function GetTabSelectBoxRect(Icon)
+        local Margin = 4
+
+        if Icon and Icon.Parent then
+            local Scale = GetSelectBoxScale()
+            local W = Icon.AbsoluteSize.X / Scale
+            local H = Icon.AbsoluteSize.Y / Scale
+            if W > 0 and H > 0 then
+                return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(W + Margin * 2, H + Margin * 2)
+            end
+        end
+
+        local PadTop = IsCompact and 6 or 11
+        local PadBottom = IsCompact and 6 or 11
+        local Side = 40 - PadTop - PadBottom
+        if Side <= 0 then
+            return nil, nil
+        end
+
+        return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(Side + Margin * 2, Side + Margin * 2)
+    end
+
+    local function GetTabIndicatorLeft(Icon)
+        local PadLeft = IsCompact and 6 or 12
+        local IconW = 40 - (IsCompact and 12 or 22)
+
+        if Icon and Icon.Parent and Icon.AbsoluteSize.X > 0 then
+            IconW = Icon.AbsoluteSize.X / GetSelectBoxScale()
+        end
+
+        return PadLeft + (IconW - TabButtonsStyle.IndicatorHeight) / 2
+    end
+
+    local function HideTabSelectBox()
+        if TabSelectBoxTween then
+            StopTween(TabSelectBoxTween)
+            TabSelectBoxTween = nil
+        end
+
+        TabSelectBoxTab = nil
+
+        if TabSelectBox then
+            TweenService:Create(TabSelectBox, Library.TweenInfo, {
+                BackgroundTransparency = 1,
+            }):Play()
+        end
+        if TabSelectBoxStroke then
+            TweenService:Create(TabSelectBoxStroke, Library.TweenInfo, {
+                Transparency = 1,
+            }):Play()
+        end
+    end
+
+    local function MoveTabSelectBox(Tab, Instant)
+        local Holder = Tab and Tab.IconHolder
+        local Icon = Tab and Tab.IconRef
+        if not Holder or not Holder.Parent or not Icon or not Icon.Parent then
+            HideTabSelectBox()
+            return
+        end
+
+        local Pos, Size = GetTabSelectBoxRect(Icon)
+        if not Pos then
+            return
+        end
+
+        if not TabSelectBox then
+            TabSelectBox = New("Frame", {
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                BackgroundTransparency = 1,
+            })
+            New("UICorner", {
+                CornerRadius = UDim.new(0, 6),
+                Parent = TabSelectBox,
+            })
+            New("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 25)),
+                }),
+                Rotation = 90,
+                Parent = TabSelectBox,
+            })
+            TabSelectBoxStroke = New("UIStroke", {
+                Color = Color3.fromRGB(255, 255, 255),
+                Transparency = 1,
+                Parent = TabSelectBox,
+            })
+        end
+
+        if TabSelectBoxTween then
+            StopTween(TabSelectBoxTween)
+            TabSelectBoxTween = nil
+        end
+
+        local StartPos, StartSize
+        if TabSelectBox.Parent and TabSelectBox.Parent ~= Holder then
+            local Scale = Library.DPIScale
+            if typeof(Scale) ~= "number" or Scale == 0 then
+                Scale = 1
+            end
+
+            local PadLeft = (IsCompact and 6 or 12) * Scale
+            local PadTop = (IsCompact and 6 or 11) * Scale
+            local Origin = Holder.AbsolutePosition + Vector2.new(PadLeft, PadTop)
+            StartPos = UDim2.fromOffset(
+                (TabSelectBox.AbsolutePosition.X - Origin.X) / Scale,
+                (TabSelectBox.AbsolutePosition.Y - Origin.Y) / Scale
+            )
+            StartSize = UDim2.fromOffset(
+                TabSelectBox.AbsoluteSize.X / Scale,
+                TabSelectBox.AbsoluteSize.Y / Scale
+            )
+        end
+
+        TabSelectBox.ZIndex = Icon.ZIndex - 1
+        TabSelectBox.Parent = Holder
+        TabSelectBoxTab = Tab
+
+        TweenService:Create(TabSelectBox, Library.TweenInfo, {
+            BackgroundTransparency = 0,
+        }):Play()
+        TweenService:Create(TabSelectBoxStroke, Library.TweenInfo, {
+            Transparency = 0,
+        }):Play()
+
+        if Instant or not StartPos then
+            TabSelectBox.Position = Pos
+            TabSelectBox.Size = Size
+        else
+            TabSelectBox.Position = StartPos
+            TabSelectBox.Size = StartSize
+            TabSelectBoxTween = TweenService:Create(
+                TabSelectBox,
+                TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {
+                    Position = Pos,
+                    Size = Size,
+                }
+            )
+            TabSelectBoxTween:Play()
+        end
+    end
+
+    local function SnapTabSelectBox()
+        local Tab = TabSelectBoxTab
+        local Holder = Tab and Tab.IconHolder
+        if not TabSelectBox or not Holder or not Holder.Parent then
+            return
+        end
+
+        local Pos, Size = GetTabSelectBoxRect(Tab and Tab.IconRef)
+        if not Pos then
+            return
+        end
+
+        if TabSelectBoxTween then
+            StopTween(TabSelectBoxTween)
+            TabSelectBoxTween = nil
+        end
+
+        TabSelectBox.Position = Pos
+        TabSelectBox.Size = Size
+    end
+
     do
         Library.KeybindFrame, Library.KeybindContainer = Library:AddDraggableMenu("Keybinds")
         Library.KeybindFrame.AnchorPoint = Vector2.new(0, 0.5)
@@ -17537,6 +17719,10 @@ function Library:CreateWindow(WindowInfo)
         end
 
         for _, Button in Library.TabButtons do
+            if Button.Indicator then
+                Button.Indicator.Position = UDim2.new(0, GetTabIndicatorLeft(Button.Icon), 1, -6)
+            end
+
             if not Button.Icon then
                 continue
             end
@@ -17548,6 +17734,8 @@ function Library:CreateWindow(WindowInfo)
             Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
             Button.Icon.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
         end
+
+        SnapTabSelectBox()
     end
 
     function Window:IsSidebarCompacted()
@@ -17770,6 +17958,8 @@ function Library:CreateWindow(WindowInfo)
         local TabIndicator
         local TabLabel
         local TabIcon
+        local ButtonHolder
+        local ButtonPadding
 
         local TabContainer
         local TabLeft
@@ -17810,11 +18000,12 @@ function Library:CreateWindow(WindowInfo)
 
             if TabButtonsStyle.Indicator then
                 TabIndicator = New("Frame", {
-                    AnchorPoint = Vector2.new(1, 0.5),
+                    AnchorPoint = Vector2.new(0, 1),
                     BackgroundColor3 = "AccentColor",
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, -2, 0.5, 0),
-                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight),
+                    Position = UDim2.new(0, IsCompact and 10 or 11, 1, -6),
+                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
+                    ZIndex = 2,
                     Parent = TabButton,
                 })
 
@@ -17824,12 +18015,12 @@ function Library:CreateWindow(WindowInfo)
                 })
             end
 
-            local ButtonHolder = New("Frame", {
+            ButtonHolder = New("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 1),
                 Parent = TabButton,
             })
-            local ButtonPadding = New("UIPadding", {
+            ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
                 PaddingRight = UDim.new(0, IsCompact and 6 or 12),
@@ -17858,12 +18049,67 @@ function Library:CreateWindow(WindowInfo)
                     Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
+
+                --// White border around the tab icon
+                local TabIconStroke = New("UIStroke", {
+                    Color = "WhiteColor",
+                    Thickness = 1.5,
+                    Transparency = 0,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                    Parent = TabIcon,
+                })
+                Library:AddToRegistry(TabIconStroke, { Color = "WhiteColor" })
+
+                --// Static accent gradient glow around the white border
+                local TabIconGlow = New("ImageLabel", {
+                    Active = false,
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    BackgroundTransparency = 1,
+                    Image = "rbxassetid://6014261993",
+                    ImageColor3 = "AccentColor",
+                    ImageTransparency = 0.5,
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    ScaleType = Enum.ScaleType.Slice,
+                    Size = UDim2.fromScale(1.7, 1.7),
+                    SizeConstraint = Enum.SizeConstraint.RelativeXY,
+                    SliceCenter = Rect.new(49, 49, 450, 450),
+                    ZIndex = 0,
+                    Parent = ButtonHolder,
+                })
+                Library:AddToRegistry(TabIconGlow, { ImageColor3 = "AccentColor" })
+
+                local TabIconGlowGradient = New("UIGradient", {
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Library.Scheme.AccentColor),
+                        ColorSequenceKeypoint.new(0.5, Library.Scheme.WhiteColor),
+                        ColorSequenceKeypoint.new(1, Library.Scheme.AccentColor),
+                    }),
+                    Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.25),
+                        NumberSequenceKeypoint.new(0.5, 0.6),
+                        NumberSequenceKeypoint.new(1, 0.25),
+                    }),
+                    Rotation = 45,
+                    Parent = TabIconGlow,
+                })
+                Library:AddToRegistry(TabIconGlowGradient, { Color = function()
+                    return ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Library.Scheme.AccentColor),
+                        ColorSequenceKeypoint.new(0.5, Library.Scheme.WhiteColor),
+                        ColorSequenceKeypoint.new(1, Library.Scheme.AccentColor),
+                    })
+                end })
+
+                if TabIndicator then
+                    TabIndicator.Position = UDim2.new(0, GetTabIndicatorLeft(TabIcon), 1, -6)
+                end
             end
 
             table.insert(Library.TabButtons, {
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
+                Indicator = TabIndicator,
             })
 
             --// Tab Container \\--
@@ -17957,6 +18203,8 @@ function Library:CreateWindow(WindowInfo)
 
             Window = Window,
             Button = TabButton,
+            IconHolder = ButtonHolder,
+            IconRef = TabIcon,
             Container = TabContainer,
             Sides = {
                 TabLeft,
@@ -20008,16 +20256,6 @@ function Library:CreateWindow(WindowInfo)
             return SubTab
         end
         function Tab:Hover(Hovering)
-            if TabIcon then
-                if Tab._IconSpinTween then
-                    StopTween(Tab._IconSpinTween)
-                end
-                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
-                    Rotation = Hovering and 360 or 0,
-                })
-                Tab._IconSpinTween:Play()
-            end
-
             if Library.ActiveTab == Tab then
                 return
             end
@@ -20056,7 +20294,15 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0,
                 }):Play()
+                if Tab._IconSpinTween then
+                    StopTween(Tab._IconSpinTween)
+                end
+                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
+                    Rotation = 360,
+                })
+                Tab._IconSpinTween:Play()
             end
+            MoveTabSelectBox(Tab, false)
 
             if Description then
                 Window:ShowTabInfo(Name, Description)
@@ -20091,6 +20337,13 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0.5,
                 }):Play()
+                if Tab._IconSpinTween then
+                    StopTween(Tab._IconSpinTween)
+                end
+                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
+                    Rotation = 0,
+                })
+                Tab._IconSpinTween:Play()
             end
 
             Library:PlayTabAnimation(Tab, false)
@@ -20105,6 +20358,10 @@ function Library:CreateWindow(WindowInfo)
 
             if not Visible and Library.ActiveTab == Tab then
                 Tab:Hide()
+            end
+
+            if not Visible and TabSelectBoxTab == Tab then
+                HideTabSelectBox()
             end
         end
 
@@ -20175,6 +20432,17 @@ function Library:CreateWindow(WindowInfo)
                 TabButton:Destroy()
             end
 
+            if TabSelectBoxTab == Tab then
+                TabSelectBoxTab = nil
+                if TabSelectBoxTween then
+                    StopTween(TabSelectBoxTween)
+                    TabSelectBoxTween = nil
+                end
+                if TabSelectBox then
+                    TabSelectBox.Parent = nil
+                end
+            end
+
             Library.Tabs[Name] = nil
         end
 
@@ -20231,6 +20499,8 @@ function Library:CreateWindow(WindowInfo)
         local TabIndicator
         local TabLabel
         local TabIcon
+        local ButtonHolder
+        local ButtonPadding
 
         local TabContainer
 
@@ -20251,11 +20521,12 @@ function Library:CreateWindow(WindowInfo)
 
             if TabButtonsStyle.Indicator then
                 TabIndicator = New("Frame", {
-                    AnchorPoint = Vector2.new(1, 0.5),
+                    AnchorPoint = Vector2.new(0, 1),
                     BackgroundColor3 = "AccentColor",
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, -2, 0.5, 0),
-                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight),
+                    Position = UDim2.new(0, IsCompact and 10 or 11, 1, -6),
+                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
+                    ZIndex = 2,
                     Parent = TabButton,
                 })
 
@@ -20265,12 +20536,12 @@ function Library:CreateWindow(WindowInfo)
                 })
             end
 
-            local ButtonHolder = New("Frame", {
+            ButtonHolder = New("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 1),
                 Parent = TabButton,
             })
-            local ButtonPadding = New("UIPadding", {
+            ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
                 PaddingRight = UDim.new(0, IsCompact and 6 or 12),
@@ -20300,12 +20571,67 @@ function Library:CreateWindow(WindowInfo)
                     Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
+
+                --// White border around the tab icon
+                local TabIconStroke = New("UIStroke", {
+                    Color = "WhiteColor",
+                    Thickness = 1.5,
+                    Transparency = 0,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                    Parent = TabIcon,
+                })
+                Library:AddToRegistry(TabIconStroke, { Color = "WhiteColor" })
+
+                --// Static accent gradient glow around the white border
+                local TabIconGlow = New("ImageLabel", {
+                    Active = false,
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    BackgroundTransparency = 1,
+                    Image = "rbxassetid://6014261993",
+                    ImageColor3 = "AccentColor",
+                    ImageTransparency = 0.5,
+                    Position = UDim2.fromScale(0.5, 0.5),
+                    ScaleType = Enum.ScaleType.Slice,
+                    Size = UDim2.fromScale(1.7, 1.7),
+                    SizeConstraint = Enum.SizeConstraint.RelativeXY,
+                    SliceCenter = Rect.new(49, 49, 450, 450),
+                    ZIndex = 0,
+                    Parent = ButtonHolder,
+                })
+                Library:AddToRegistry(TabIconGlow, { ImageColor3 = "AccentColor" })
+
+                local TabIconGlowGradient = New("UIGradient", {
+                    Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Library.Scheme.AccentColor),
+                        ColorSequenceKeypoint.new(0.5, Library.Scheme.WhiteColor),
+                        ColorSequenceKeypoint.new(1, Library.Scheme.AccentColor),
+                    }),
+                    Transparency = NumberSequence.new({
+                        NumberSequenceKeypoint.new(0, 0.25),
+                        NumberSequenceKeypoint.new(0.5, 0.6),
+                        NumberSequenceKeypoint.new(1, 0.25),
+                    }),
+                    Rotation = 45,
+                    Parent = TabIconGlow,
+                })
+                Library:AddToRegistry(TabIconGlowGradient, { Color = function()
+                    return ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Library.Scheme.AccentColor),
+                        ColorSequenceKeypoint.new(0.5, Library.Scheme.WhiteColor),
+                        ColorSequenceKeypoint.new(1, Library.Scheme.AccentColor),
+                    })
+                end })
+
+                if TabIndicator then
+                    TabIndicator.Position = UDim2.new(0, GetTabIndicatorLeft(TabIcon), 1, -6)
+                end
             end
 
             table.insert(Library.TabButtons, {
                 Label = TabLabel,
                 Padding = ButtonPadding,
                 Icon = TabIcon,
+                Indicator = TabIndicator,
             })
 
             --// Tab Container \\--
@@ -20344,6 +20670,8 @@ function Library:CreateWindow(WindowInfo)
 
             Window = Window,
             Button = TabButton,
+            IconHolder = ButtonHolder,
+            IconRef = TabIcon,
             Container = TabContainer
         }
 
@@ -20458,6 +20786,17 @@ function Library:CreateWindow(WindowInfo)
                 TabButton:Destroy()
             end
 
+            if TabSelectBoxTab == Tab then
+                TabSelectBoxTab = nil
+                if TabSelectBoxTween then
+                    StopTween(TabSelectBoxTween)
+                    TabSelectBoxTween = nil
+                end
+                if TabSelectBox then
+                    TabSelectBox.Parent = nil
+                end
+            end
+
             Library.Tabs[Name] = nil
         end
 
@@ -20471,16 +20810,6 @@ function Library:CreateWindow(WindowInfo)
         function Tab:UpdateCorners() end
 
         function Tab:Hover(Hovering)
-            if TabIcon then
-                if Tab._IconSpinTween then
-                    StopTween(Tab._IconSpinTween)
-                end
-                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
-                    Rotation = Hovering and 360 or 0,
-                })
-                Tab._IconSpinTween:Play()
-            end
-
             if Library.ActiveTab == Tab then
                 return
             end
@@ -20522,7 +20851,15 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0,
                 }):Play()
+                if Tab._IconSpinTween then
+                    StopTween(Tab._IconSpinTween)
+                end
+                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
+                    Rotation = 360,
+                })
+                Tab._IconSpinTween:Play()
             end
+            MoveTabSelectBox(Tab, false)
 
             Library:PlayTabAnimation(Tab, true)
 
@@ -20558,6 +20895,13 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TabIcon, Library.TweenInfo, {
                     ImageTransparency = 0.5,
                 }):Play()
+                if Tab._IconSpinTween then
+                    StopTween(Tab._IconSpinTween)
+                end
+                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
+                    Rotation = 0,
+                })
+                Tab._IconSpinTween:Play()
             end
 
             Library:PlayTabAnimation(Tab, false)
@@ -20572,6 +20916,10 @@ function Library:CreateWindow(WindowInfo)
 
             if not Visible and Library.ActiveTab == Tab then
                 Tab:Hide()
+            end
+
+            if not Visible and TabSelectBoxTab == Tab then
+                HideTabSelectBox()
             end
         end
 
