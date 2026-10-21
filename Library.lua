@@ -15475,13 +15475,17 @@ function Library:CreateWindow(WindowInfo)
             TabSelectBoxGlow = New("ImageLabel", {
                 Active = false,
                 BackgroundTransparency = 1,
-                Image = "rbxassetid://5028857472",
+                Image = "rbxassetid://76557958491288",
                 ImageColor3 = Color3.fromRGB(255, 255, 255),
                 ImageTransparency = 0.3,
                 ScaleType = Enum.ScaleType.Stretch,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
                 Parent = Holder,
+            })
+            New("UICorner", {
+                CornerRadius = UDim.new(0, 6),
+                Parent = TabSelectBoxGlow,
             })
         end
         TabSelectBoxGlow.ZIndex = TabSelectBox.ZIndex - 1
