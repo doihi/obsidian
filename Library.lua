@@ -21695,6 +21695,7 @@ function Library:CreateWindow(WindowInfo)
 
     Window.MainFrame = MainFrame
     Library.Window = Window
+    Library.BackgroundTargets = BackgroundTargets
 
 
     --// Glow stays opt-in: only build it when explicitly requested via config.
