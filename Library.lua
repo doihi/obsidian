@@ -21729,6 +21729,7 @@ function Library:CreateWindow(WindowInfo)
     if WindowInfo.AutoMinimize and WindowInfo.Minimizable then
         Window:SetMinimized(true)
     end
+    end
     return Window
 end
 
@@ -22954,49 +22955,8 @@ do
         function Library:SetBackgroundImage(Image: string | number)
             assert(typeof(Image) == "string" or typeof(Image) == "number", "Expected string/number for Image, got: " .. typeof(Image))
 
-            local url = tostring(Image)
-
-            --// If it's a direct URL (png/jpg link), try to download it via CustomImageManager
-            --// so it works even when Roblox can't load remote URLs directly
-            if typeof(Image) == "string" and Image:match("^https?://") then
-                local RawFileName = Image:match("(.+)%..+$")
-                local _, Domain = Image:match("^(https?://)([^/]+)")
-                if RawFileName and Domain then
-                    local Extention = string.sub(Image, #RawFileName + 1, #Image)
-                    local FileNamePos = RawFileName:gsub("\\", "/"):find("/[^/]*$")
-                    local FileName = FileNamePos and Image:sub(FileNamePos + 1) or nil
-                    if FileName then
-                        local AssetName = Domain .. FileName
-                        if #AssetName > 255 then
-                            local NewLength = 255 - #Domain - #Extention
-                            if NewLength < 0 then
-                                AssetName = Domain .. Extention
-                            else
-                                AssetName = Domain .. string.sub(FileName:sub(1, #FileName - #Extention), 1, NewLength) .. Extention
-                            end
-                        end
-                        if CustomImageManagerAssets[FileName] == nil then
-                            CustomImageManager.AddAsset(FileName, 0, Image)
-                        else
-                            CustomImageManager.DownloadAsset(FileName, true)
-                        end
-                        local ok, assetId = pcall(CustomImageManager.GetAsset, CustomImageManager, FileName)
-                        if ok and assetId and assetId ~= "" and not tostring(assetId):match("rbxassetid://0$") then
-                            url = assetId
-                        else
-                            --// Fall back to direct URL if local asset isn't available
-                            url = Image
-                        end
-                    end
-                end
-            elseif typeof(Image) == "number" then
-                url = string.format("rbxassetid://%s", tostring(Image))
-            else
-                local resolved = Library:GetCustomImage(Image)
-                if typeof(resolved) == "table" and resolved.Url then
-                    url = resolved.Url
-                end
-            end
+            local resolved = Library:GetCustomImage(Image)
+            local url = (typeof(resolved) == "table" and resolved.Url) or tostring(Image)
 
             self.Scheme.BackgroundImage = url
             local bgImage = EnsureBackgroundImage()
