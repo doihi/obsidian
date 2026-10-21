@@ -1758,58 +1758,6 @@ function Library:GetCustomIcon(IconName: string): any
     return nil
 end
 
-function Library:AddGlow(Frame, Properties)
-    Properties = Properties or {}
-
-    local Color       = Properties.Color or "AccentColor"
-    local Size         = Properties.Size or 10
-    local Intensity    = Properties.Intensity or 0.65
-    local ZIndexOffset = Properties.ZIndexOffset or -1
-
-    -- 角丸フレームの縁になじむよう、少し大きいサイズで放射グラデーション画像を重ねる
-    local Glow = Instance.new("ImageLabel")
-    Glow.Name = "Glow"
-    Glow.Parent = Frame
-    Glow.BackgroundTransparency = 1
-    Glow.Image = "rbxassetid://5028857472"
-    Glow.ImageTransparency = 1 - Intensity
-    Glow.ScaleType = Enum.ScaleType.Slice
-    Glow.SliceCenter = Rect.new(128, 128, 128, 128)
-    Glow.SliceScale = 1
-    Glow.ZIndex = Frame.ZIndex + ZIndexOffset
-    Glow.Size = UDim2.new(1, Size * 2, 1, Size * 2)
-    Glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    Glow.AnchorPoint = Vector2.new(0.5, 0.5)
-
-    if typeof(Color) == "Color3" then
-        Glow.ImageColor3 = Color
-    elseif typeof(Color) == "string" then
-        local SchemeValue = GetSchemeValue(Color)
-        if SchemeValue then
-            Glow.ImageColor3 = SchemeValue
-        end
-    end
-
-    -- フレームの角丸と同じ丸みをグローにも適用(タイトに輪郭へ沿わせるため)
-    local CornerRadius = Properties.CornerRadius
-    if not CornerRadius then
-        local ExistingCorner = Frame:FindFirstChildOfClass("UICorner")
-        CornerRadius = ExistingCorner and ExistingCorner.CornerRadius or UDim.new(0, Library.CornerRadius or 6)
-    end
-
-    local Corner = Instance.new("UICorner")
-    Corner.Parent = Glow
-    Corner.CornerRadius = CornerRadius
-
-    -- テーマ切り替え時に色を追従させたい場合は Registry に登録
-    if typeof(Color) == "string" then
-        Library.Registry[Glow] = Library.Registry[Glow] or {}
-        Library.Registry[Glow].ImageColor3 = Color
-    end
-
-    return Glow
-end
-
 function Library:ApplyLucideIcon(ImageGui: any, Icon: any, Rotation: number?)
     if not ImageGui or not Icon then
         return
@@ -1906,8 +1854,6 @@ local function New(ClassName: string, Properties: { [string]: any }): any
 
     return InstanceGG
 end
-
-Library.New = New
 
 --// Main Instances \\-
 local function SafeParentUI(Instance: Instance, Parent: Instance | () -> Instance)
@@ -22864,6 +22810,14 @@ if Library.GetCustomImage == nil then
             }
         end
 
+        --// Support direct image URLs (png/jpg links)
+        if typeof(Image) == "string" and Image:match("^https?://") then
+            return {
+                Url = Image,
+                Custom = true,
+            }
+        end
+
         return ""
     end
 end
@@ -22999,12 +22953,57 @@ do
     if Library.SetBackgroundImage == nil then
         function Library:SetBackgroundImage(Image: string | number)
             assert(typeof(Image) == "string" or typeof(Image) == "number", "Expected string/number for Image, got: " .. typeof(Image))
-            local resolved = Library:GetCustomImage(Image)
-            local url = (typeof(resolved) == "table" and resolved.Url) or tostring(Image)
+
+            local url = tostring(Image)
+
+            --// If it's a direct URL (png/jpg link), try to download it via CustomImageManager
+            --// so it works even when Roblox can't load remote URLs directly
+            if typeof(Image) == "string" and Image:match("^https?://") then
+                local RawFileName = Image:match("(.+)%..+$")
+                local _, Domain = Image:match("^(https?://)([^/]+)")
+                if RawFileName and Domain then
+                    local Extention = string.sub(Image, #RawFileName + 1, #Image)
+                    local FileNamePos = RawFileName:gsub("\\", "/"):find("/[^/]*$")
+                    local FileName = FileNamePos and Image:sub(FileNamePos + 1) or nil
+                    if FileName then
+                        local AssetName = Domain .. FileName
+                        if #AssetName > 255 then
+                            local NewLength = 255 - #Domain - #Extention
+                            if NewLength < 0 then
+                                AssetName = Domain .. Extention
+                            else
+                                AssetName = Domain .. string.sub(FileName:sub(1, #FileName - #Extention), 1, NewLength) .. Extention
+                            end
+                        end
+                        if CustomImageManagerAssets[FileName] == nil then
+                            CustomImageManager.AddAsset(FileName, 0, Image)
+                        else
+                            CustomImageManager.DownloadAsset(FileName, true)
+                        end
+                        local ok, assetId = pcall(CustomImageManager.GetAsset, CustomImageManager, FileName)
+                        if ok and assetId and assetId ~= "" and not tostring(assetId):match("rbxassetid://0$") then
+                            url = assetId
+                        else
+                            --// Fall back to direct URL if local asset isn't available
+                            url = Image
+                        end
+                    end
+                end
+            elseif typeof(Image) == "number" then
+                url = string.format("rbxassetid://%s", tostring(Image))
+            else
+                local resolved = Library:GetCustomImage(Image)
+                if typeof(resolved) == "table" and resolved.Url then
+                    url = resolved.Url
+                end
+            end
+
             self.Scheme.BackgroundImage = url
             local bgImage = EnsureBackgroundImage()
             if not bgImage then return end
             bgImage.Image = url
+            bgImage.ImageRectOffset = Vector2.zero
+            bgImage.ImageRectSize = Vector2.zero
             if self.Scheme.BackgroundImageEnabled then
                 local main = EnsureMainFrame()
                 if main then
