@@ -15495,7 +15495,7 @@ function Library:CreateWindow(WindowInfo)
         TabSelectBoxGlow.Visible = true
 
         TweenService:Create(TabSelectBox, Library.TweenInfo, {
-            BackgroundTransparency = 1,
+            BackgroundTransparency = 0,
         }):Play()
         TweenService:Create(TabSelectBoxStroke, Library.TweenInfo, {
             Transparency = 0,
@@ -15560,6 +15560,7 @@ function Library:CreateWindow(WindowInfo)
             TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 6, Pos.Y.Offset - 6)
             TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 12, Size.Y.Offset + 12)
         end
+    end
 
     do
         Library.KeybindFrame, Library.KeybindContainer = Library:AddDraggableMenu("Keybinds")
@@ -21729,7 +21730,6 @@ function Library:CreateWindow(WindowInfo)
     --// AutoMinimize: start collapsed when requested and minimizable.
     if WindowInfo.AutoMinimize and WindowInfo.Minimizable then
         Window:SetMinimized(true)
-    end
     end
     return Window
 end
