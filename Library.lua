@@ -21695,7 +21695,6 @@ function Library:CreateWindow(WindowInfo)
 
     Window.MainFrame = MainFrame
     Library.Window = Window
-    getgenv().Window = Window
     Library.BackgroundTargets = BackgroundTargets
 
 
