@@ -21695,6 +21695,7 @@ function Library:CreateWindow(WindowInfo)
 
     Window.MainFrame = MainFrame
     Library.Window = Window
+    getgenv().Window = Window
     Library.BackgroundTargets = BackgroundTargets
 
 
@@ -23036,6 +23037,15 @@ end
 --// 10. Dropdown:AddButton/:Filter compat note -- remote uses pooled list + drag-select (:RefreshPool, :SetDragSelect).
 --// (No overwrite to avoid breaking remote internals.)
 
+
+--// Convenience: delegate sidebar width to the active window (if any)
+if Library.SetSidebarWidth == nil then
+    function Library:SetSidebarWidth(Width)
+        if Library.Window and Library.Window.SetSidebarWidth then
+            return Library.Window:SetSidebarWidth(Width)
+        end
+    end
+end
 
 getgenv().Library = Library
 return Library
