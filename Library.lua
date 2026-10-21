@@ -15475,10 +15475,10 @@ function Library:CreateWindow(WindowInfo)
             TabSelectBoxGlow = New("ImageLabel", {
                 Active = false,
                 BackgroundTransparency = 1,
-                Image = "rbxassetid://100776901733014",
+                Image = "rbxassetid://6014261993",
                 ImageColor3 = Color3.fromRGB(255, 255, 255),
                 ImageTransparency = 0.3,
-                ScaleType = Enum.ScaleType.Stretch,
+                ScaleType = Enum.ScaleType.Fit,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
                 Parent = Holder,
