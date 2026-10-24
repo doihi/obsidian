@@ -15339,6 +15339,8 @@ function Library:CreateWindow(WindowInfo)
     local TabSelectBoxStroke
     local TabSelectBoxTab
     local TabSelectBoxTween
+    local TabSelectBoxIconConn
+    local TabSelectBoxIconSizeConn
 
     local function GetSelectBoxScale()
         local Scale = Library.DPIScale
@@ -15353,8 +15355,27 @@ function Library:CreateWindow(WindowInfo)
 
         if Icon and Icon.Parent then
             local Scale = GetSelectBoxScale()
-            local W = Icon.AbsoluteSize.X / Scale
-            local H = Icon.AbsoluteSize.Y / Scale
+            local Size = Icon.AbsoluteSize
+            --// Use the declared Size directly when it is absolute (offset-only),
+            --// so changes to the icon size are reflected immediately.
+            --// Otherwise fall back to AbsoluteSize (handles SizeConstraint/scale).
+            local DeclaredSize = nil
+            if Icon.Size then
+                local Parent = Icon.Parent
+                local ParentSize = Parent and Parent.AbsoluteSize or Vector2.zero
+                local SX = Icon.Size.X.Scale * ParentSize.X + Icon.Size.X.Offset
+                local SY = Icon.Size.Y.Scale * ParentSize.Y + Icon.Size.Y.Offset
+                if SX > 0 and SY > 0 then
+                    DeclaredSize = Vector2.new(SX, SY)
+                end
+            end
+            if DeclaredSize and Icon.Size.X.Scale == 0 and Icon.Size.Y.Scale == 0 then
+                Size = DeclaredSize
+            elseif (Size.X <= 0 or Size.Y <= 0) and DeclaredSize then
+                Size = DeclaredSize
+            end
+            local W = Size.X / Scale
+            local H = Size.Y / Scale
             if W > 0 and H > 0 then
                 return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(W + Margin * 2, H + Margin * 2)
             end
@@ -15385,6 +15406,15 @@ function Library:CreateWindow(WindowInfo)
         if TabSelectBoxTween then
             StopTween(TabSelectBoxTween)
             TabSelectBoxTween = nil
+        end
+
+        if TabSelectBoxIconConn then
+            TabSelectBoxIconConn:Disconnect()
+            TabSelectBoxIconConn = nil
+        end
+        if TabSelectBoxIconSizeConn then
+            TabSelectBoxIconSizeConn:Disconnect()
+            TabSelectBoxIconSizeConn = nil
         end
 
         TabSelectBoxTab = nil
@@ -15465,6 +15495,24 @@ function Library:CreateWindow(WindowInfo)
 
         TabSelectBox.ZIndex = Icon.ZIndex - 1
         TabSelectBox.Parent = Holder
+
+        if TabSelectBoxIconConn then
+            TabSelectBoxIconConn:Disconnect()
+            TabSelectBoxIconConn = nil
+        end
+        if TabSelectBoxIconSizeConn then
+            TabSelectBoxIconSizeConn:Disconnect()
+            TabSelectBoxIconSizeConn = nil
+        end
+        if Icon then
+            local function OnIconSizeChanged()
+                SnapTabSelectBox()
+                task.defer(SnapTabSelectBox)
+            end
+            TabSelectBoxIconConn = Icon:GetPropertyChangedSignal("AbsoluteSize"):Connect(OnIconSizeChanged)
+            TabSelectBoxIconSizeConn = Icon:GetPropertyChangedSignal("Size"):Connect(OnIconSizeChanged)
+        end
+
         TabSelectBoxTab = Tab
 
         TweenService:Create(TabSelectBox, Library.TweenInfo, {
@@ -17736,6 +17784,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         SnapTabSelectBox()
+        task.defer(SnapTabSelectBox)
     end
 
     function Window:IsSidebarCompacted()
@@ -20388,6 +20437,14 @@ function Library:CreateWindow(WindowInfo)
                     StopTween(TabSelectBoxTween)
                     TabSelectBoxTween = nil
                 end
+                if TabSelectBoxIconConn then
+                    TabSelectBoxIconConn:Disconnect()
+                    TabSelectBoxIconConn = nil
+                end
+                if TabSelectBoxIconSizeConn then
+                    TabSelectBoxIconSizeConn:Disconnect()
+                    TabSelectBoxIconSizeConn = nil
+                end
                 if TabSelectBox then
                     TabSelectBox.Parent = nil
                 end
@@ -20691,6 +20748,14 @@ function Library:CreateWindow(WindowInfo)
                 if TabSelectBoxTween then
                     StopTween(TabSelectBoxTween)
                     TabSelectBoxTween = nil
+                end
+                if TabSelectBoxIconConn then
+                    TabSelectBoxIconConn:Disconnect()
+                    TabSelectBoxIconConn = nil
+                end
+                if TabSelectBoxIconSizeConn then
+                    TabSelectBoxIconSizeConn:Disconnect()
+                    TabSelectBoxIconSizeConn = nil
                 end
                 if TabSelectBox then
                     TabSelectBox.Parent = nil
