@@ -15501,13 +15501,7 @@ function Library:CreateWindow(WindowInfo)
             TabSelectBoxGlow = New("ImageLabel", {
                 Active = false,
                 BackgroundTransparency = 1,
-                Image = (function()
-                    local Asset = CustomImageManager.GetAsset("GlowTexture")
-                    if Asset and Asset ~= "" and Asset ~= "rbxassetid://0" then
-                        return Asset
-                    end
-                    return "https://raw.githubusercontent.com/doihi/obsidian/main/asset/glow_texture.png"
-                end)(),
+                Image = "rbxassetid://6014261993",
                 ImageColor3 = Color3.fromRGB(255, 255, 255),
                 ImageTransparency = 0.3,
                 ScaleType = Enum.ScaleType.Stretch,
