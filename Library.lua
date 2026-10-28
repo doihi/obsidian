@@ -527,7 +527,8 @@ local Templates = {
               Gap = 4,
               Padding = 6,
               CornerRadius = 6,
-            Indicator = true,
+            Indicator = false,
+            IndicatorOrientation = "horizontal",
             IndicatorWidth = 2,
             IndicatorHeight = 20,
         },
@@ -18079,12 +18080,17 @@ function Library:CreateWindow(WindowInfo)
             })
 
             if TabButtonsStyle.Indicator then
+                local IsVertical = TabButtonsStyle.IndicatorOrientation == "vertical"
                 TabIndicator = New("Frame", {
-                    AnchorPoint = Vector2.new(0, 1),
+                    AnchorPoint = IsVertical and Vector2.new(0, 0.5) or Vector2.new(0, 1),
                     BackgroundColor3 = "AccentColor",
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, IsCompact and 10 or 11, 1, -6),
-                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
+                    Position = IsVertical
+                        and UDim2.new(0, 4, 0.5, 0)
+                        or UDim2.new(0, IsCompact and 10 or 11, 1, -6),
+                    Size = IsVertical
+                        and UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight)
+                        or UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
                     ZIndex = 2,
                     Parent = TabButton,
                 })
@@ -18131,7 +18137,7 @@ function Library:CreateWindow(WindowInfo)
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
 
-                if TabIndicator then
+                if TabIndicator and TabButtonsStyle.IndicatorOrientation ~= "vertical" then
                     TabIndicator.Position = UDim2.new(0, GetTabIndicatorLeft(TabIcon), 1, -6)
                 end
             end
@@ -20328,10 +20334,16 @@ function Library:CreateWindow(WindowInfo)
                 if Tab._IconSpinTween then
                     StopTween(Tab._IconSpinTween)
                 end
-                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
-                    Rotation = 360,
-                })
-                Tab._IconSpinTween:Play()
+                if Tab._IconSpinConn then
+                    Tab._IconSpinConn:Disconnect()
+                    Tab._IconSpinConn = nil
+                end
+                --// 選択中のタブのアイコンを右回りに連続回転
+                Tab._IconSpinConn = RunService.RenderStepped:Connect(function(dt)
+                    if TabIcon and TabIcon.Parent then
+                        TabIcon.Rotation = (TabIcon.Rotation + dt * 180) % 360
+                    end
+                end)
             end
             MoveTabSelectBox(Tab, false)
 
@@ -20371,10 +20383,11 @@ function Library:CreateWindow(WindowInfo)
                 if Tab._IconSpinTween then
                     StopTween(Tab._IconSpinTween)
                 end
-                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
-                    Rotation = 0,
-                })
-                Tab._IconSpinTween:Play()
+                if Tab._IconSpinConn then
+                    Tab._IconSpinConn:Disconnect()
+                    Tab._IconSpinConn = nil
+                end
+                TabIcon.Rotation = 0
             end
 
             Library:PlayTabAnimation(Tab, false)
@@ -20458,6 +20471,11 @@ function Library:CreateWindow(WindowInfo)
                         table.remove(Library.TabButtons, Index)
                         break
                     end
+                end
+
+                if Tab._IconSpinConn then
+                    Tab._IconSpinConn:Disconnect()
+                    Tab._IconSpinConn = nil
                 end
 
                 TabButton:Destroy()
@@ -20551,12 +20569,17 @@ function Library:CreateWindow(WindowInfo)
             })
 
             if TabButtonsStyle.Indicator then
+                local IsVertical = TabButtonsStyle.IndicatorOrientation == "vertical"
                 TabIndicator = New("Frame", {
-                    AnchorPoint = Vector2.new(0, 1),
+                    AnchorPoint = IsVertical and Vector2.new(0, 0.5) or Vector2.new(0, 1),
                     BackgroundColor3 = "AccentColor",
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, IsCompact and 10 or 11, 1, -6),
-                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
+                    Position = IsVertical
+                        and UDim2.new(0, 4, 0.5, 0)
+                        or UDim2.new(0, IsCompact and 10 or 11, 1, -6),
+                    Size = IsVertical
+                        and UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight)
+                        or UDim2.fromOffset(TabButtonsStyle.IndicatorHeight, TabButtonsStyle.IndicatorWidth),
                     ZIndex = 2,
                     Parent = TabButton,
                 })
@@ -20604,7 +20627,7 @@ function Library:CreateWindow(WindowInfo)
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
 
-                if TabIndicator then
+                if TabIndicator and TabButtonsStyle.IndicatorOrientation ~= "vertical" then
                     TabIndicator.Position = UDim2.new(0, GetTabIndicatorLeft(TabIcon), 1, -6)
                 end
             end
@@ -20765,6 +20788,11 @@ function Library:CreateWindow(WindowInfo)
                     end
                 end
 
+                if Tab._IconSpinConn then
+                    Tab._IconSpinConn:Disconnect()
+                    Tab._IconSpinConn = nil
+                end
+
                 TabButton:Destroy()
             end
 
@@ -20836,10 +20864,16 @@ function Library:CreateWindow(WindowInfo)
                 if Tab._IconSpinTween then
                     StopTween(Tab._IconSpinTween)
                 end
-                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
-                    Rotation = 360,
-                })
-                Tab._IconSpinTween:Play()
+                if Tab._IconSpinConn then
+                    Tab._IconSpinConn:Disconnect()
+                    Tab._IconSpinConn = nil
+                end
+                --// 選択中のタブのアイコンを右回りに連続回転
+                Tab._IconSpinConn = RunService.RenderStepped:Connect(function(dt)
+                    if TabIcon and TabIcon.Parent then
+                        TabIcon.Rotation = (TabIcon.Rotation + dt * 180) % 360
+                    end
+                end)
             end
             MoveTabSelectBox(Tab, false)
 
@@ -20880,10 +20914,11 @@ function Library:CreateWindow(WindowInfo)
                 if Tab._IconSpinTween then
                     StopTween(Tab._IconSpinTween)
                 end
-                Tab._IconSpinTween = TweenService:Create(TabIcon, Library.TabIconSpinInfo, {
-                    Rotation = 0,
-                })
-                Tab._IconSpinTween:Play()
+                if Tab._IconSpinConn then
+                    Tab._IconSpinConn:Disconnect()
+                    Tab._IconSpinConn = nil
+                end
+                TabIcon.Rotation = 0
             end
 
             Library:PlayTabAnimation(Tab, false)
