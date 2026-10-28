@@ -312,6 +312,7 @@ local Library = {
         BackgroundColor = Color3.fromRGB(15, 15, 15),
         MainColor = Color3.fromRGB(25, 25, 25),
         AccentColor = Color3.fromRGB(125, 85, 255),
+        SecondaryAccentColor = Color3.fromRGB(180, 200, 255),
         OutlineColor = Color3.fromRGB(40, 40, 40),
         FontColor = Color3.new(1, 1, 1),
         Font = Font.fromEnum(Enum.Font.Code),
@@ -796,6 +797,15 @@ local function GetSchemeValue(Index)
     end
 
     return Library.Scheme[Index]
+end
+
+--// Secondary accent color (Corvus-style): returns SecondaryAccentColor or lerps AccentColor toward white
+function Library:GetSecondaryAccent(): Color3
+    local Secondary = Library.Scheme.SecondaryAccentColor
+    if typeof(Secondary) == "Color3" then
+        return Secondary
+    end
+    return Library.Scheme.AccentColor:Lerp(Color3.fromRGB(236, 242, 255), 0.6)
 end
 
 --// Basic Functions \\--
@@ -9561,11 +9571,19 @@ local function CreatePlayerCard(Info, Parent: Instance, IsCompact: boolean, Inse
             Size = UDim2.fromOffset(AvatarSize, AvatarSize),
             Parent = Box,
         })
+        --// Circular avatar with accent-colored ring (Corvus-style)
         table.insert(Library.Corners, New("UICorner", {
-            CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+            CornerRadius = UDim.new(1, 0),
             Parent = AvatarHolder,
         }))
-        Library:AddOutline(AvatarHolder)
+        local AvatarRing = New("UIStroke", {
+            Color = "AccentColor",
+            Thickness = 2,
+            Transparency = 0,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+            Parent = AvatarHolder,
+        })
+        Library:AddToRegistry(AvatarRing, { Color = "AccentColor" })
 
         AvatarImage = New("ImageLabel", {
             BackgroundTransparency = 1,
@@ -15482,10 +15500,6 @@ function Library:CreateWindow(WindowInfo)
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
                 Parent = Holder,
-            })
-            New("UICorner", {
-                CornerRadius = UDim.new(0, 6),
-                Parent = TabSelectBoxGlow,
             })
         end
         TabSelectBoxGlow.ZIndex = TabSelectBox.ZIndex - 1
