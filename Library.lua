@@ -15504,7 +15504,9 @@ function Library:CreateWindow(WindowInfo)
                 Image = "rbxassetid://6014261993",
                 ImageColor3 = Color3.fromRGB(255, 255, 255),
                 ImageTransparency = 0.2,
-                ScaleType = Enum.ScaleType.Stretch,
+                ScaleType = Enum.ScaleType.Slice,
+                SliceCenter = Rect.new(49, 49, 450, 450),
+                SliceScale = 1,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
                 Parent = Holder,
@@ -15525,15 +15527,15 @@ function Library:CreateWindow(WindowInfo)
             TabSelectBox.Position = Pos
             TabSelectBox.Size = Size
             if TabSelectBoxGlow then
-                TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 5, Pos.Y.Offset - 5)
-                TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 10, Size.Y.Offset + 10)
+                TabSelectBoxGlow.Position = UDim2.fromOffset(Pos.X.Offset - 15, Pos.Y.Offset - 15)
+                TabSelectBoxGlow.Size = UDim2.fromOffset(Size.X.Offset + 30, Size.Y.Offset + 30)
             end
         else
             TabSelectBox.Position = StartPos
             TabSelectBox.Size = StartSize
             if TabSelectBoxGlow then
-                TabSelectBoxGlow.Position = UDim2.fromOffset(StartPos.X.Offset - 5, StartPos.Y.Offset - 5)
-                TabSelectBoxGlow.Size = UDim2.fromOffset(StartSize.X.Offset + 10, StartSize.Y.Offset + 10)
+                TabSelectBoxGlow.Position = UDim2.fromOffset(StartPos.X.Offset - 15, StartPos.Y.Offset - 15)
+                TabSelectBoxGlow.Size = UDim2.fromOffset(StartSize.X.Offset + 30, StartSize.Y.Offset + 30)
             end
             TabSelectBoxTween = TweenService:Create(
                 TabSelectBox,
@@ -15548,8 +15550,8 @@ function Library:CreateWindow(WindowInfo)
                     TabSelectBoxGlow,
                     TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
                     {
-                        Position = UDim2.fromOffset(Pos.X.Offset - 5, Pos.Y.Offset - 5),
-                        Size = UDim2.fromOffset(Size.X.Offset + 10, Size.Y.Offset + 10),
+                        Position = UDim2.fromOffset(Pos.X.Offset - 15, Pos.Y.Offset - 15),
+                        Size = UDim2.fromOffset(Size.X.Offset + 30, Size.Y.Offset + 30),
                     }
                 ):Play()
             end
