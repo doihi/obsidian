@@ -15508,14 +15508,14 @@ function Library:CreateWindow(WindowInfo)
                 CornerRadius = UDim.new(0, 6),
                 Parent = TabSelectBoxGlow,
             })
-            --// Smooth outward fade: 16 thin strokes with gradually decreasing opacity
-            local GlowSteps = 16
+            --// Tight outward fade: 4 thin strokes, ~4px total spread
+            local GlowSteps = 4
             for i = 1, GlowSteps do
                 local T = i / GlowSteps  -- 0..1
                 New("UIStroke", {
                     Color = Color3.fromRGB(255, 255, 255),
-                    Thickness = 2 + (i - 1) * 1,  -- 2,3,4,...,17
-                    Transparency = 0.3 + T * 0.65,  -- 0.3..0.95
+                    Thickness = i,  -- 1,2,3,4
+                    Transparency = 0.3 + T * 0.6,  -- 0.3..0.9
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
                     Parent = TabSelectBoxGlow,
                 })
