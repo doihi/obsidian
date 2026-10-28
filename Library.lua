@@ -16412,12 +16412,41 @@ function Library:CreateWindow(WindowInfo)
                 if BellImage then
                     TweenService:Create(BellImage, Library.TweenInfo, { ImageTransparency = 0 }):Play()
                 end
+                --// Corvus-style: slightly enlarge + sway left/right (works even without BellImage)
+                local Target = BellImage or BellButton
+                local Scale = Target:FindFirstChildOfClass("UIScale")
+                if not Scale then
+                    Scale = New("UIScale", { Scale = 1, Parent = Target })
+                end
+                TweenService:Create(Scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.35 }):Play()
+                if Target._SwayConn then
+                    Target._SwayConn:Disconnect()
+                    Target._SwayConn = nil
+                end
+                local SwayTime = 0
+                Target._SwayConn = RunService.RenderStepped:Connect(function(dt)
+                    if not (Target and Target.Parent) then
+                        return
+                    end
+                    SwayTime += dt
+                    Target.Rotation = math.sin(SwayTime * 10) * 18
+                end)
             end)
             BellButton.MouseLeave:Connect(function()
                 TweenService:Create(BellButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
                 if BellImage then
                     TweenService:Create(BellImage, Library.TweenInfo, { ImageTransparency = 0.35 }):Play()
                 end
+                local Target = BellImage or BellButton
+                local Scale = Target:FindFirstChildOfClass("UIScale")
+                if Scale then
+                    TweenService:Create(Scale, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+                end
+                if Target._SwayConn then
+                    Target._SwayConn:Disconnect()
+                    Target._SwayConn = nil
+                end
+                Target.Rotation = 0
             end)
             BellButton.MouseButton1Click:Connect(function()
                 Library:ToggleNotificationHistory()
