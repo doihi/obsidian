@@ -15503,7 +15503,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundTransparency = 1,
                 Image = "rbxassetid://6014261993",
                 ImageColor3 = Color3.fromRGB(255, 255, 255),
-                ImageTransparency = 0.3,
+                ImageTransparency = 0.2,
                 ScaleType = Enum.ScaleType.Stretch,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
