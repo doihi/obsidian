@@ -64,6 +64,14 @@ local CustomImageManagerAssets = {
 
         Id = nil,
     },
+
+    GlowTexture = {
+        RobloxId = 0,
+        Path = "Obsidian/assets/GlowTexture.png",
+        URL = "https://raw.githubusercontent.com/doihi/obsidian/main/asset/glow_texture.png",
+
+        Id = nil,
+    },
 }
 do
     local function RecursiveCreatePath(Path: string, IsFile: boolean?)
@@ -15493,10 +15501,18 @@ function Library:CreateWindow(WindowInfo)
             TabSelectBoxGlow = New("ImageLabel", {
                 Active = false,
                 BackgroundTransparency = 1,
-                Image = "rbxassetid://6014261993",
+                Image = (function()
+                    local Asset = CustomImageManager.GetAsset("GlowTexture")
+                    if Asset and Asset ~= "" and Asset ~= "rbxassetid://0" then
+                        return Asset
+                    end
+                    return "https://raw.githubusercontent.com/doihi/obsidian/main/asset/glow_texture.png"
+                end)(),
                 ImageColor3 = Color3.fromRGB(255, 255, 255),
                 ImageTransparency = 0.3,
-                ScaleType = Enum.ScaleType.Fit,
+                ScaleType = Enum.ScaleType.Slice,
+                SliceCenter = Rect.new(56, 56, 200, 200),
+                SliceScale = 1,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
                 Parent = Holder,
