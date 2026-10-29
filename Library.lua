@@ -15463,10 +15463,11 @@ function Library:CreateWindow(WindowInfo)
                 Parent = TabSelectBox,
             })
             TabSelectBoxStroke = New("UIStroke", {
-                Color = Color3.fromRGB(255, 255, 255),
+                Color = "AccentColor",
                 Transparency = 1,
                 Parent = TabSelectBox,
             })
+            Library:AddToRegistry(TabSelectBoxStroke, { Color = "AccentColor" })
         end
 
         if TabSelectBoxTween then
@@ -15513,13 +15514,14 @@ function Library:CreateWindow(WindowInfo)
             local GlowSteps = 4
             for i = 1, GlowSteps do
                 local T = i / GlowSteps  -- 0..1
-                New("UIStroke", {
-                    Color = Color3.fromRGB(255, 255, 255),
+                local GlowStroke = New("UIStroke", {
+                    Color = "AccentColor",
                     Thickness = i,  -- 1,2,3,4
                     Transparency = 0.3 + T * 0.6,  -- 0.3..0.9
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
                     Parent = TabSelectBoxGlow,
                 })
+                Library:AddToRegistry(GlowStroke, { Color = "AccentColor" })
             end
         end
         TabSelectBoxGlow.ZIndex = TabSelectBox.ZIndex - 1
