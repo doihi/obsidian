@@ -16419,12 +16419,19 @@ function Library:CreateWindow(WindowInfo)
                     Scale = New("UIScale", { Scale = 1, Parent = Target })
                 end
                 TweenService:Create(Scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.35 }):Play()
-                if Target._SwayTween then
-                    Target._SwayTween:Cancel()
-                    Target._SwayTween = nil
-                end
-                Target._SwayTween = TweenService:Create(Target, TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), { Rotation = 15 })
-                Target._SwayTween:Play()
+                Target._SwayLoop = true
+                task.spawn(function()
+                    local t = 0
+                    local freq = 6
+                    local duration = 2 * (2 * math.pi / freq)  -- 2回揺れる
+                    while Target._SwayLoop and Target and Target.Parent and t < duration do
+                        local dt = task.wait(0.03) or 0.03
+                        t += dt
+                        Target.Rotation = math.sin(t * freq) * 15
+                    end
+                    Target._SwayLoop = false
+                    Target.Rotation = 0
+                end)
             end)
             BellButton.MouseLeave:Connect(function()
                 TweenService:Create(BellButton, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
@@ -16436,10 +16443,7 @@ function Library:CreateWindow(WindowInfo)
                 if Scale then
                     TweenService:Create(Scale, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 }):Play()
                 end
-                if Target._SwayTween then
-                    Target._SwayTween:Cancel()
-                    Target._SwayTween = nil
-                end
+                Target._SwayLoop = false
                 Target.Rotation = 0
             end)
             BellButton.MouseButton1Click:Connect(function()
