@@ -2090,7 +2090,7 @@ local function applyBackgroundTarget(Target, Asset)
         Active = false,
         BackgroundTransparency = 1,
         Image = Asset,
-        ImageTransparency = 0.8,
+        ImageTransparency = 0.5,
         Position = UDim2.fromScale(0, 0),
         ScaleType = Enum.ScaleType.Stretch,
         Size = UDim2.fromScale(1, 1),
@@ -23033,7 +23033,7 @@ do
                 if State and main then
                     main.BackgroundTransparency = 1
                     for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0.8 end)
+                        pcall(function() target.BackgroundTransparency = 0.5 end)
                     end
                 elseif main then
                     main.BackgroundTransparency = 0
@@ -23064,7 +23064,7 @@ do
                 if main then
                     main.BackgroundTransparency = 1
                     for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0.8 end)
+                        pcall(function() target.BackgroundTransparency = 0.5 end)
                     end
                 end
             end
