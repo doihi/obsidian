@@ -16414,25 +16414,25 @@ function Library:CreateWindow(WindowInfo)
                 if BellImage then
                     TweenService:Create(BellImage, Library.TweenInfo, { ImageTransparency = 0 }):Play()
                 end
-                --// Corvus-style: slightly enlarge + sway left/right (works even without BellImage)
+                --// Corvus-style: slightly enlarge + wiggle (sway left/right)
                 local Target = BellImage or BellButton
                 local Scale = Target:FindFirstChildOfClass("UIScale")
                 if not Scale then
                     Scale = New("UIScale", { Scale = 1, Parent = Target })
                 end
-                TweenService:Create(Scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.35 }):Play()
-                Target._SwayLoop = true
+                TweenService:Create(Scale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.2 }):Play()
+
+                --// Wiggle: -16, 13, -9, 5, 0 (Corvus pattern)
                 task.spawn(function()
-                    local t = 0
-                    local freq = 6
-                    local duration = 2 * (2 * math.pi / freq)  -- 2回揺れる
-                    while Target._SwayLoop and Target and Target.Parent and t < duration do
-                        local dt = task.wait(0.03) or 0.03
-                        t += dt
-                        Target.Rotation = math.sin(t * freq) * 15
+                    for _, Angle in { -16, 13, -9, 5, 0 } do
+                        if not (Target and Target.Parent) then
+                            return
+                        end
+                        TweenService:Create(Target, TweenInfo.new(0.07, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                            Rotation = Angle,
+                        }):Play()
+                        task.wait(0.07)
                     end
-                    Target._SwayLoop = false
-                    Target.Rotation = 0
                 end)
             end)
             BellButton.MouseLeave:Connect(function()
@@ -16445,7 +16445,6 @@ function Library:CreateWindow(WindowInfo)
                 if Scale then
                     TweenService:Create(Scale, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 }):Play()
                 end
-                Target._SwayLoop = false
                 Target.Rotation = 0
             end)
             BellButton.MouseButton1Click:Connect(function()
