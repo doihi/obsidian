@@ -17819,7 +17819,7 @@ function Library:CreateWindow(WindowInfo)
     local function ApplyCompact()
         IsCompact = Window:GetSidebarWidth() == WindowInfo.SidebarCompactWidth
         if WindowInfo.DisableCompactingSnap then
-            IsCompact = Window:GetSidebarWidth() == WindowInfo.SidebarCompactWidth
+            IsCompact = Window:GetSidebarWidth() == WindowInfo.CompactWidthActivation
         end
 
         WindowTitle.Visible = not IsCompact
