@@ -23033,7 +23033,7 @@ do
                 if State and main then
                     main.BackgroundTransparency = 1
                     for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0.5 end)
+                        pcall(function() target.BackgroundTransparency = 0.9 end)
                     end
                 elseif main then
                     main.BackgroundTransparency = 0
@@ -23064,7 +23064,7 @@ do
                 if main then
                     main.BackgroundTransparency = 1
                     for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0.5 end)
+                        pcall(function() target.BackgroundTransparency = 0.9 end)
                     end
                 end
             end
