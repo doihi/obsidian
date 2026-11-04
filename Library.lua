@@ -23021,6 +23021,31 @@ do
         return nil
     end
 
+    --// Background target transparency snapshot (keep the picked background colors) \\--
+    --// The old code forced registered panels to 0.9 on enable and 0 on disable, which
+    --// leaked the chosen BackgroundColor through the panels ("色が少し変化してしまう").
+    --// Capture the real transparency on first use and restore it instead.
+    local function SnapshotBackgroundTargets(self)
+        if self.BackgroundTargetOriginals then return end
+        self.BackgroundTargetOriginals = {}
+        for target in pairs(self.BackgroundTargets or {}) do
+            if typeof(target) == "Instance" and target:IsA("GuiObject") then
+                self.BackgroundTargetOriginals[target] = target.BackgroundTransparency
+            end
+        end
+    end
+    local function RestoreBackgroundTargets(self)
+        local originals = self.BackgroundTargetOriginals
+        if not originals then return end
+        for target, trans in pairs(originals) do
+            pcall(function()
+                if target.Parent then
+                    target.BackgroundTransparency = trans
+                end
+            end)
+        end
+    end
+
     if Library.SetBackgroundImageEnabled == nil then
         function Library:SetBackgroundImageEnabled(State: boolean)
             assert(typeof(State) == "boolean", "Expected boolean for State, got: " .. typeof(State))
@@ -23029,18 +23054,10 @@ do
             if not bgImage then return end
             bgImage.Visible = State
             if bgImage.Image and bgImage.Image ~= "" then
-                local main = EnsureMainFrame()
-                if State and main then
-                    main.BackgroundTransparency = 1
-                    for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0.9 end)
-                    end
-                elseif main then
-                    main.BackgroundTransparency = 0
-                    for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0 end)
-                    end
-                end
+                -- 背景画像は main の子として不透明に描画されるため、main/パネルを透過する必要はない。
+                -- 触れる透明度は全て保存した元の値に戻し、選んだ色がにじまないようにする。
+                SnapshotBackgroundTargets(self)
+                RestoreBackgroundTargets(self)
             end
             self:UpdateColorsUsingRegistry()
         end
@@ -23060,13 +23077,9 @@ do
             bgImage.ImageRectOffset = Vector2.zero
             bgImage.ImageRectSize = Vector2.zero
             if self.Scheme.BackgroundImageEnabled then
-                local main = EnsureMainFrame()
-                if main then
-                    main.BackgroundTransparency = 1
-                    for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0.9 end)
-                    end
-                end
+                -- 0.9 への上書きはやめて、保存済みの元透明度に復元する (選んだ色のにじみ対策)
+                SnapshotBackgroundTargets(self)
+                RestoreBackgroundTargets(self)
             end
             self:UpdateColorsUsingRegistry()
         end
