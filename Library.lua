@@ -5893,7 +5893,8 @@ do
         })
 
         local HolderStroke = New("UIStroke", {
-            Color = Library:GetDarkerColor(ColorPicker.Value),
+            Color = "OutlineColor",
+            Thickness = 2,
             Parent = Holder,
         })
 
@@ -6552,7 +6553,7 @@ do
                 HolderTransparency.ImageTransparency = math.clamp((1 - ColorPicker.Transparency) + 0.5, 0, 1)
             else
                 Holder.BackgroundColor3 = ColorPicker.Value
-                HolderStroke.Color = Library:GetDarkerColor(ColorPicker.Value)
+                HolderStroke.Color = Library.Scheme.OutlineColor
                 HolderTransparency.ImageTransparency = (1 - ColorPicker.Transparency)
             end
         end
