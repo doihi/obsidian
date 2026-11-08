@@ -5893,7 +5893,8 @@ do
         })
 
         local HolderStroke = New("UIStroke", {
-            Color = Library:GetDarkerColor(ColorPicker.Value),
+            Color = "FontColor",
+            Thickness = 1,
             Parent = Holder,
         })
 
@@ -6552,7 +6553,7 @@ do
                 HolderTransparency.ImageTransparency = math.clamp((1 - ColorPicker.Transparency) + 0.5, 0, 1)
             else
                 Holder.BackgroundColor3 = ColorPicker.Value
-                HolderStroke.Color = Library:GetDarkerColor(ColorPicker.Value)
+                HolderStroke.Color = Library.Scheme.FontColor
                 HolderTransparency.ImageTransparency = (1 - ColorPicker.Transparency)
             end
         end
@@ -23028,20 +23029,9 @@ do
             local bgImage = EnsureBackgroundImage()
             if not bgImage then return end
             bgImage.Visible = State
-            if bgImage.Image and bgImage.Image ~= "" then
-                local main = EnsureMainFrame()
-                if State and main then
-                    main.BackgroundTransparency = 1
-                    for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0.9 end)
-                    end
-                elseif main then
-                    main.BackgroundTransparency = 0
-                    for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0 end)
-                    end
-                end
-            end
+            -- パネル/枠の透明度はいじらない。
+            -- (旧: ONでパネルを0.9透過させており、選んだ BackgroundColor が滲んで見えていた)
+            -- 透明度の制御は呼び出し側のUIが自前で行う。
             self:UpdateColorsUsingRegistry()
         end
     end
@@ -23059,15 +23049,7 @@ do
             bgImage.Image = url
             bgImage.ImageRectOffset = Vector2.zero
             bgImage.ImageRectSize = Vector2.zero
-            if self.Scheme.BackgroundImageEnabled then
-                local main = EnsureMainFrame()
-                if main then
-                    main.BackgroundTransparency = 1
-                    for _, target in self.BackgroundTargets do
-                        pcall(function() target.BackgroundTransparency = 0.9 end)
-                    end
-                end
-            end
+            -- 透明度はいじらない (呼び出し側のUIが自前で制御する)
             self:UpdateColorsUsingRegistry()
         end
     end
