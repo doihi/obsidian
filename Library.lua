@@ -21727,16 +21727,14 @@ function Library:CreateWindow(WindowInfo)
                 end
             end)
 
-            --// Restore the sidebar layout against the final width, and the
-            --// clipping back, once growth completes
+            --// Restore the clipping once growth completes. Nothing else is
+            --// touched: the window's own layout (including the compact
+            --// sidebar) is left exactly as the window created it.
             task.delay(SplashExpandInfo.Time, function()
                 if not (MainFrame and MainFrame.Parent) then
                     return
                 end
                 MainFrame.ClipsDescendants = false
-                pcall(function()
-                    Window:SetSidebarWidth(LastExpandedWidth)
-                end)
             end)
         end)
 
@@ -21773,9 +21771,6 @@ function Library:CreateWindow(WindowInfo)
             if Library.Toggled and not Minimized then
                 MainFrame.Visible = true
             end
-            pcall(function()
-                Window:SetSidebarWidth(LastExpandedWidth)
-            end)
         end
     end
 
