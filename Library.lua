@@ -21554,6 +21554,56 @@ function Library:CreateWindow(WindowInfo)
         )
     end
 
+    --// Restore everything the splash hides, instantly and without animation.
+    --// Used as the safety net when the intro fails partway through, so the
+    --// window can never end up stuck tiny or invisible. \\--
+    local function RestoreWindowInstantly()
+        if not (MainFrame and MainFrame.Parent) then
+            return
+        end
+
+        pcall(function()
+            MainFrame.ClipsDescendants = false
+            TopBar.Size = UDim2.new(1, 0, 0, 48)
+            TitleHolder.Size = UDim2.new(0, InitialLeftWidth, 1, 0)
+            if WindowTitle then
+                WindowTitle.Visible = true
+                WindowTitle.TextTransparency = 0
+            end
+            if TagsHolder then
+                TagsHolder.Visible = not IsCompact
+            end
+            for _, Child in TopBar:GetChildren() do
+                if Child:IsA("GuiObject") and Child ~= TitleHolder then
+                    Child.Visible = true
+                end
+            end
+            DividerLine.Visible = true
+            Tabs.Visible = true
+            Container.Visible = true
+            TopDividerLine.Visible = true
+            BottomDividerLine.Visible = true
+            BottomBackground.Visible = true
+            BottomBar.Visible = true
+            if BackgroundVideoFrame then
+                BackgroundVideoFrame.Visible = true
+            end
+            if WindowIcon then
+                WindowIcon.Size = WindowInfo.IconSize
+                if not WindowInfo.Icon and not IsCompact then
+                    WindowIcon.Visible = false
+                end
+            end
+            local FullWidth = WindowInfo.Size.X.Offset
+            local FullHeight = WindowInfo.Size.Y.Offset
+            MainFrame.Size = UDim2.fromOffset(FullWidth, FullHeight)
+            if WindowInfo.Center then
+                MainFrame.Position = UDim2.new(0.5, -FullWidth / 2, 0.5, -FullHeight / 2)
+            end
+            Window:SetSidebarWidth(LastExpandedWidth)
+        end)
+    end
+
     --// Phase 2: stretch the square sideways so the window name fades in to
     --// the right of the icon. Keeps the square's center and height. \\--
     local function PlayTitlePhase()
@@ -21625,6 +21675,7 @@ function Library:CreateWindow(WindowInfo)
             end
         end
         WindowTitle.Visible = true
+        WindowTitle.TextTransparency = 0
         TagsHolder.Visible = not IsCompact
 
         TweenService:Create(MainFrame, IntroTweenInfo, {
@@ -21706,28 +21757,43 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// First reveal: enter through the splash (icon-only square), then
-        --// stretch sideways for the window name, then expand the main UI
+        --// stretch sideways for the window name, then expand the main UI.
+        --// Any failure in the intro falls back to the normal window so it
+        --// can never leave the screen empty. \\--
         if Library.Toggled and IntroState == 0 then
             if Minimized or (WindowInfo.AutoMinimize and WindowInfo.Minimizable) then
                 --// Window starts minimized; never play the splash later
                 IntroState = 3
             else
-                IntroState = 1
-                ApplySplashState()
-                task.delay(SplashHoldTime, function()
-                    if IntroState ~= 1 then
-                        return
-                    end
-                    IntroState = 2
-                    PlayTitlePhase()
-                    task.delay(TitlePhaseTime + TitleHoldTime, function()
-                        if IntroState ~= 2 then
+                local SplashOk, SplashErr = pcall(ApplySplashState)
+                if not SplashOk then
+                    warn("[doihi Library] Startup splash failed: " .. tostring(SplashErr) .. " -- showing the window normally")
+                    RestoreWindowInstantly()
+                    IntroState = 3
+                else
+                    IntroState = 1
+                    task.delay(SplashHoldTime, function()
+                        if IntroState ~= 1 then
                             return
                         end
-                        IntroState = 3
-                        ExpandSplash()
+                        IntroState = 2
+                        local TitleOk, TitleErr = pcall(PlayTitlePhase)
+                        if not TitleOk then
+                            warn("[doihi Library] Window name reveal failed: " .. tostring(TitleErr) .. " -- skipping to the full window")
+                        end
+                        task.delay(TitlePhaseTime + TitleHoldTime, function()
+                            if IntroState ~= 2 then
+                                return
+                            end
+                            IntroState = 3
+                            local ExpandOk, ExpandErr = pcall(ExpandSplash)
+                            if not ExpandOk then
+                                warn("[doihi Library] Window expansion failed: " .. tostring(ExpandErr) .. " -- restoring the window instantly")
+                                RestoreWindowInstantly()
+                            end
+                        end)
                     end)
-                end)
+                end
             end
         end
 
