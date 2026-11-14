@@ -15516,7 +15516,7 @@ function Library:CreateWindow(WindowInfo)
         --// Grow both edges around the centre so the splash stays centred
         local StartX = math.floor(CenterX - PillWidth * 0.5)
         local ContentW = IconWidth + 8 + TitleWidth
-        local GroupStart = StartX + (PillWidth - ContentW) * 0.5
+        local GroupStart = math.floor((PillWidth - ContentW) * 0.5)
         local IconCenterX = GroupStart + IconWidth * 0.5
         local TitleCenterX = GroupStart + IconWidth + 8 + TitleWidth * 0.5
         local CenterY = SplashFrame.Size.Y.Offset * 0.5
