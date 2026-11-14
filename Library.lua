@@ -15385,7 +15385,11 @@ function Library:CreateWindow(WindowInfo)
     local SplashExpandInfo = TweenInfo.new(SplashExpandTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     --// Splash debug logging (only useful while diagnosing behavior in executors)
     local function SplashLog(...)
-        print("[splash] " .. tostring(...))
+        local parts = {...}
+        for i = 1, #parts do
+            parts[i] = tostring(parts[i])
+        end
+        print("[splash] " .. table.concat(parts, " "))
     end
     --// Pixels the typed-in name starts offset to the right, before sliding left
     local SplashTextSlideOffset = 12
@@ -15502,8 +15506,10 @@ function Library:CreateWindow(WindowInfo)
             return
         end
         SplashLog("2c: Icon is:", tostring(SplashIcon ~= nil), "Title label is:", tostring(SplashTitle ~= nil))
-        SplashLog("2d: WindowInfo.Title is:", tostring(WindowInfo.Title),
-            "Scheme.Font is:", tostring(Library.Scheme.Font and typeof(Library.Scheme.Font) or "nil"))
+        SplashLog("2d: WindowInfo.Title is:", tostring(WindowInfo.Title))
+        SplashLog("2d2: typeof(WindowInfo.Title) =", tostring(WindowInfo.Title and typeof(WindowInfo.Title) or "nil"))
+        local FontType = tostring(Library.Scheme.Font and typeof(Library.Scheme.Font) or "nil")
+        SplashLog("2d3: Scheme.Font typeof =", FontType)
 
         --// Natural width of the title (fallback to an estimate if needed)
         local TitleWidth
@@ -15512,8 +15518,10 @@ function Library:CreateWindow(WindowInfo)
             SplashLog("2e: GetTextBounds returned", tostring(Bounds))
             TitleWidth = math.floor(Bounds)
         else
-            SplashLog("2f: GetTextBounds failed (BoundsOk=" .. tostring(BoundsOk) .. " type(Bounds)=" .. tostring(type(Bounds)) .. ") falling back")
-            TitleWidth = math.floor(#tostring(WindowInfo.Title) * 11)
+            SplashLog("2f: GetTextBounds failed (BoundsOk=", tostring(BoundsOk), " type(Bounds)=", tostring(type(Bounds)), ") falling back")
+            local RawTitle = tostring(WindowInfo.Title)
+            SplashLog("2g: tostring(WindowInfo.Title) =", RawTitle, "# =", #RawTitle)
+            TitleWidth = math.floor(#RawTitle * 11)
         end
         TitleWidth = math.max(8, TitleWidth)
 
