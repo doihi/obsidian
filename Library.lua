@@ -416,6 +416,8 @@ local Templates = {
     --// Library \\--
     Window = {
         Title = "No Title",
+        --// Name shown on the splash overlay only; defaults to Title
+        SplashTitle = nil,
         Footer = "No Footer",
         CopyableFooter = true,
 
@@ -15393,17 +15395,25 @@ function Library:CreateWindow(WindowInfo)
     end
     --// Pixels the typed-in name starts offset to the right, before sliding left
     local SplashTextSlideOffset = 12
+    --// Vertically lift the splash a little above the optical
+    --// centre so it doesn't sit squarely dead centre
+    local SplashVerticalNudge = 48
+
+    --// The name shown on the splash overlay only. Defaults to the window's
+    --// own title, but WindowInfo.SplashTitle lets scripts override it
+    local SplashTitleText = WindowInfo.SplashTitle and tostring(WindowInfo.SplashTitle)
+        or tostring(WindowInfo.Title or "")
 
     local function SplashTargetCenter(): Vector2
         local Cam = workspace.CurrentCamera
         local Vp = Cam and Cam.ViewportSize or Vector2.new(1920, 1080)
         if WindowInfo.Center then
-            return Vector2.new(Vp.X * 0.5, Vp.Y * 0.5)
+            return Vector2.new(Vp.X * 0.5, Vp.Y * 0.5 - SplashVerticalNudge)
         end
         local Pos = WindowInfo.Position
         return Vector2.new(
             Pos.X.Scale * Vp.X + Pos.X.Offset + WindowInfo.Size.X.Offset * 0.5,
-            Pos.Y.Scale * Vp.Y + Pos.Y.Offset + WindowInfo.Size.Y.Offset * 0.5
+            Pos.Y.Scale * Vp.Y + Pos.Y.Offset + WindowInfo.Size.Y.Offset * 0.5 - SplashVerticalNudge
         )
     end
 
@@ -15473,7 +15483,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundTransparency = 1,
                 Position = UDim2.fromOffset(Side * 0.5, Side * 0.5),
                 Size = UDim2.fromOffset(IconPx, IconPx),
-                Text = (WindowInfo.Title or "?"):sub(1, 1),
+                Text = #SplashTitleText > 0 and SplashTitleText:sub(1, 1) or "?",
                 TextScaled = true,
                 Parent = SplashFrame,
             })
@@ -15485,7 +15495,7 @@ function Library:CreateWindow(WindowInfo)
             BackgroundTransparency = 1,
             Position = UDim2.fromOffset(Side * 0.5, Side * 0.5),
             Size = UDim2.new(0, 100, 0, 48),
-            Text = WindowInfo.Title,
+            Text = SplashTitleText,
             TextSize = 20,
             TextTransparency = 1,
             Visible = false,
@@ -15506,20 +15516,20 @@ function Library:CreateWindow(WindowInfo)
             return
         end
         SplashLog("2c: Icon is:", tostring(SplashIcon ~= nil), "Title label is:", tostring(SplashTitle ~= nil))
-        SplashLog("2d: WindowInfo.Title is:", tostring(WindowInfo.Title))
-        SplashLog("2d2: typeof(WindowInfo.Title) =", tostring(WindowInfo.Title and typeof(WindowInfo.Title) or "nil"))
+        SplashLog("2d: SplashTitleText is:", SplashTitleText)
+        SplashLog("2d2: typeof(SplashTitleText) =", tostring(typeof(SplashTitleText)))
         local FontType = tostring(Library.Scheme.Font and typeof(Library.Scheme.Font) or "nil")
         SplashLog("2d3: Scheme.Font typeof =", FontType)
 
         --// Natural width of the title (fallback to an estimate if needed)
         local TitleWidth
-        local BoundsOk, Bounds = pcall(Library.GetTextBounds, Library, WindowInfo.Title, Library.Scheme.Font, 20, 10000)
+        local BoundsOk, Bounds = pcall(Library.GetTextBounds, Library, SplashTitleText, Library.Scheme.Font, 20, 10000)
         if BoundsOk and type(Bounds) == "number" then
             SplashLog("2e: GetTextBounds returned", tostring(Bounds))
             TitleWidth = math.floor(Bounds)
         else
             SplashLog("2f: GetTextBounds failed (BoundsOk=", tostring(BoundsOk), " type(Bounds)=", tostring(type(Bounds)), ") falling back")
-            local RawTitleOk, RawTitle = pcall(tostring, WindowInfo.Title or "")
+            local RawTitleOk, RawTitle = pcall(tostring, SplashTitleText)
             if not RawTitleOk or typeof(RawTitle) ~= "string" then
                 RawTitle = ""
             end
@@ -15560,8 +15570,8 @@ function Library:CreateWindow(WindowInfo)
             }):Play()
 
             task.spawn(function()
-                SplashLog("2h: entering typewriter thread. typeof(WindowInfo.Title)=", tostring(WindowInfo.Title and typeof(WindowInfo.Title) or "nil"))
-                local FullTextOk, FullText = pcall(tostring, WindowInfo.Title or "")
+                SplashLog("2h: entering typewriter thread. typeof(SplashTitleText)=", tostring(typeof(SplashTitleText)))
+                local FullTextOk, FullText = pcall(tostring, SplashTitleText)
                 if not FullTextOk or typeof(FullText) ~= "string" then
                     FullText = ""
                 end
