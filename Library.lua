@@ -15383,6 +15383,10 @@ function Library:CreateWindow(WindowInfo)
     local SplashExpandTime = 0.8 -- expand the splash into the window rect
     local SplashTitleTweenInfo = TweenInfo.new(SplashTitleFadeTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     local SplashExpandInfo = TweenInfo.new(SplashExpandTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    --// Splash debug logging (only useful while diagnosing behavior in executors)
+    local function SplashLog(...)
+        print("[splash] " .. tostring(...))
+    end
     --// Pixels the typed-in name starts offset to the right, before sliding left
     local SplashTextSlideOffset = 12
 
@@ -15437,6 +15441,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.fromOffset(Side, Side),
             Parent = ScreenGui,
         })
+        SplashLog("build complete: side =", Side, "Icon =", tostring(WindowInfo.Icon), "pos =", math.floor(Center.X - Side * 0.5), math.floor(Center.Y - Side * 0.5))
         New("UICorner", {
             CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
             Parent = SplashFrame,
@@ -15694,6 +15699,7 @@ function Library:CreateWindow(WindowInfo)
     end
 
     local function StartStartupSplash()
+        SplashLog("StartStartupSplash state=", tostring(SplashState))
         if SplashState ~= 1 then
             return
         end
@@ -15703,8 +15709,11 @@ function Library:CreateWindow(WindowInfo)
             ShowStartupSplashFallback()
             return
         end
+        SplashLog("registered task.delay for", SplashHoldTime, "seconds")
         task.delay(SplashHoldTime, function()
+            SplashLog("-> pill phase firing")
             if SplashState ~= 1 then
+                SplashLog("aborted: SplashState =", tostring(SplashState))
                 return
             end
             local TitleOk, TitleErr = pcall(PlayStartupSplashTitlePhase)
@@ -15713,15 +15722,20 @@ function Library:CreateWindow(WindowInfo)
                 ShowStartupSplashFallback()
                 return
             end
+            SplashLog("-> pill phase played ok")
             task.delay(SplashTitleFadeTime + SplashTitleHoldTime, function()
+                SplashLog("-> expand phase firing")
                 if SplashState ~= 1 then
+                    SplashLog("aborted: SplashState =", tostring(SplashState))
                     return
                 end
                 local ExpandOk, ExpandErr = pcall(ExpandStartupSplashIntoWindow)
                 if not ExpandOk then
                     warn("[doihi Library] Startup splash could not expand: " .. tostring(ExpandErr) .. " -- showing the window normally")
                     ShowStartupSplashFallback()
+                    return
                 end
+                SplashLog("-> expand phase played ok")
             end)
         end)
     end
@@ -15730,7 +15744,10 @@ function Library:CreateWindow(WindowInfo)
     --// Show the startup icon immediately; the rest of the window is built
     --// behind it, so the user gets instant feedback instead of a blank screen
     if WindowInfo.AutoShow and not Library.ActiveLoading and not (WindowInfo.AutoMinimize and WindowInfo.Minimizable) then
+        print("[splash] early build at createwindow locals time")
         pcall(BuildStartupSplash)
+    else
+        print("[splash] early build skipped (AutoShow=" .. tostring(WindowInfo.AutoShow) .. " ActiveLoading=" .. tostring(Library.ActiveLoading) .. " AutoMinimize=" .. tostring(WindowInfo.AutoMinimize) .. ")")
     end
 
     --// Shared tab selection box + indicator centering (measured from the actual icon) \\--
@@ -21911,9 +21928,11 @@ function Library:CreateWindow(WindowInfo)
             else
                 SplashState = 1
                 SplashDeferred = true
+                print("[splash] toggle defer: SplashState = 1, calling StartStartupSplash")
                 StartStartupSplash()
             end
         elseif not Library.Toggled and SplashState == 1 then
+            print("[splash] toggle closed during splash: dismissing")
             pcall(DismissStartupSplash)
         end
 
