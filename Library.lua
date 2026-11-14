@@ -21630,17 +21630,24 @@ function Library:CreateWindow(WindowInfo)
         local IconWidth = SplashIcon and SplashIcon.Size.X.Offset or 30
         local PillWidth = math.clamp(math.floor(IconWidth + 8 + TitleWidth + 32), Width, WindowInfo.Size.X.Offset)
 
+        --// Keep the icon+title group centered in the growing pill
+        local ContentW = IconWidth + 8 + TitleWidth
+        local StartX = (PillWidth - ContentW) * 0.5
+        local IconCenterX = StartX + IconWidth * 0.5
+        local TitleCenterX = StartX + IconWidth + 8 + TitleWidth * 0.5
+        local CenterY = SplashFrame.Size.Y.Offset * 0.5
+
         if SplashTitle then
-            --// Place the title just right of the icon, vertically centered with it
-            local IconCenter = SplashIcon and SplashIcon.Position or UDim2.fromOffset(Width * 0.5, Height * 0.5)
             SplashTitle.Visible = true
-            SplashTitle.Position = UDim2.fromOffset(
-                IconCenter.X.Offset + IconWidth * 0.5 + 8 + TitleWidth * 0.5,
-                IconCenter.Y.Offset
-            )
             SplashTitle.Size = UDim2.new(0, TitleWidth, 0, 48)
             TweenService:Create(SplashTitle, SplashTitleTweenInfo, {
                 TextTransparency = 0,
+                Position = UDim2.fromOffset(TitleCenterX, CenterY),
+            }):Play()
+        end
+        if SplashIcon then
+            TweenService:Create(SplashIcon, SplashTitleTweenInfo, {
+                Position = UDim2.fromOffset(IconCenterX, CenterY),
             }):Play()
         end
         --// Stretch only to the right; the left edge never moves
