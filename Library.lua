@@ -15639,7 +15639,7 @@ function Library:CreateWindow(WindowInfo)
             })
         )
         Library:AddOutline(MainFrame)
-        Library:MakeLine(MainFrame, {
+        local TopDividerLine = Library:MakeLine(MainFrame, {
             Position = UDim2.fromOffset(0, 48),
             Size = UDim2.new(1, 0, 0, 1),
         })
@@ -16481,7 +16481,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 20 + WindowInfo.CornerRadius),
             Parent = MainFrame
         })
-        Library:MakeLine(MainFrame, {
+        local BottomDividerLine = Library:MakeLine(MainFrame, {
             AnchorPoint = Vector2.new(0, 1),
             Position = UDim2.new(0, 0, 1, -20),
             Size = UDim2.new(1, 0, 0, 1),
@@ -21672,16 +21672,22 @@ function Library:CreateWindow(WindowInfo)
                 Candidates[#Candidates + 1] = Desc
             end
             for _, Inst in ipairs(Candidates) do
-                if Inst.Visible then
-                local Props
-                local ClassName = Inst.ClassName
+                --// UIs with no .Visible property (UIStroke, UILayout, UICorner,
+                --// ...) must never be indexed for .Visible - read by class instead
+                if Inst:IsA("UIStroke") then
+                    local Base = Inst.Transparency
+                    if typeof(Base) == "number" and Base < 1 then
+                        Target[#Target + 1] = { Instance = Inst, Prop = "Transparency", Base = Base }
+                    end
+                elseif Inst:IsA("GuiObject") then
+                    if Inst.Visible then
+                    local Props
+                    local ClassName = Inst.ClassName
                 if ClassName == "ImageLabel" or ClassName == "ImageButton" or ClassName == "VideoFrame" then
                     Props = { "BackgroundTransparency", "ImageTransparency" }
                 elseif ClassName == "TextLabel" or ClassName == "TextBox" or ClassName == "TextButton" then
                     Props = { "BackgroundTransparency", "TextTransparency" }
-                elseif ClassName == "UIStroke" then
-                    Props = { "Transparency" }
-                elseif Inst:IsA("GuiObject") then
+                else
                     Props = { "BackgroundTransparency" }
                 end
                 if Props then
