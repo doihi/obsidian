@@ -21608,8 +21608,9 @@ function Library:CreateWindow(WindowInfo)
         Library:MakeDraggable(SplashFrame, SplashFrame, true, true)
     end
 
-    --// Phase 2: stretch the square only to the right so the window name fades
-    --// in to the right of the icon. The left edge and icon stay anchored. \\--
+    --// Phase 2: stretch the square only to the right while the window name is
+    --// typed in character by character to the right of the icon. The left
+    --// edge never moves; the icon+title group stays horizontally centered. \\--
     local function PlayStartupSplashTitlePhase()
         if not (SplashFrame and SplashFrame.Parent) then
             return
@@ -21639,11 +21640,37 @@ function Library:CreateWindow(WindowInfo)
 
         if SplashTitle then
             SplashTitle.Visible = true
+            --// Typewriter reveal: one character at a time, like being typed.
+            --// Rich text is suspended mid-type so markup never flickers; it
+            --// is restored once the full name has been typed.
+            SplashTitle.RichText = false
+            SplashTitle.TextTransparency = 0
+            SplashTitle.Text = ""
             SplashTitle.Size = UDim2.new(0, TitleWidth, 0, 48)
             TweenService:Create(SplashTitle, SplashTitleTweenInfo, {
-                TextTransparency = 0,
                 Position = UDim2.fromOffset(TitleCenterX, CenterY),
             }):Play()
+
+            task.spawn(function()
+                local FullText = tostring(WindowInfo.Title or "")
+                local Delay = math.max(0.02, math.min(0.055, (SplashTitleFadeTime * 0.85) / math.max(#FullText, 1)))
+                for Index = 1, #FullText do
+                    if not (SplashTitle and SplashTitle.Parent) then
+                        return
+                    end
+                    local Wrote = pcall(function()
+                        SplashTitle.Text = FullText:sub(1, Index)
+                    end)
+                    if not Wrote then
+                        return
+                    end
+                    task.wait(Delay)
+                end
+                pcall(function()
+                    SplashTitle.RichText = true
+                    SplashTitle.Text = FullText
+                end)
+            end)
         end
         if SplashIcon then
             TweenService:Create(SplashIcon, SplashTitleTweenInfo, {
@@ -21696,17 +21723,16 @@ function Library:CreateWindow(WindowInfo)
             MainFrame.Position = UDim2.fromOffset(StartX, StartY)
             MainFrame.Visible = true
 
-            --// Dissolve the splash shell over the same rect
+            --// The real window supplies its own icon and title; the splash's
+            --// are hidden instantly so they never draw on top of the real
+            --// ones (no afterimage). The clip hides the handoff entirely.
             if SplashIcon then
-                if SplashIcon:IsA("ImageLabel") then
-                    TweenService:Create(SplashIcon, FadeInfo, { ImageTransparency = 1 }):Play()
-                else
-                    TweenService:Create(SplashIcon, FadeInfo, { TextTransparency = 1 }):Play()
-                end
+                SplashIcon.Visible = false
             end
             if SplashTitle then
-                TweenService:Create(SplashTitle, FadeInfo, { TextTransparency = 1 }):Play()
+                SplashTitle.Visible = false
             end
+            --// Dissolve the splash shell over the same rect
             if SplashFrame and SplashFrame.Parent then
                 TweenService:Create(SplashFrame, FadeInfo, { BackgroundTransparency = 1 }):Play()
             end
