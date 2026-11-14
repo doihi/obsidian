@@ -15632,7 +15632,7 @@ function Library:CreateWindow(WindowInfo)
             })
         )
         Library:AddOutline(MainFrame)
-        local TopDividerLine = Library:MakeLine(MainFrame, {
+        Library:MakeLine(MainFrame, {
             Position = UDim2.fromOffset(0, 48),
             Size = UDim2.new(1, 0, 0, 1),
         })
@@ -16474,7 +16474,7 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 20 + WindowInfo.CornerRadius),
             Parent = MainFrame
         })
-        local BottomDividerLine = Library:MakeLine(MainFrame, {
+        Library:MakeLine(MainFrame, {
             AnchorPoint = Vector2.new(0, 1),
             Position = UDim2.new(0, 0, 1, -20),
             Size = UDim2.new(1, 0, 0, 1),
@@ -21484,232 +21484,6 @@ function Library:CreateWindow(WindowInfo)
         return Dialog
     end
 
-    --// Startup splash: reveal the window as a small square showing only the
-    --// window icon. Two seconds later the window name fades in to the right of
-    --// the icon (the square stretches into an icon+title pill over 1s), and
-    --// one second after that the main UI expands to the full window.
-    --// Runs once per window, on its first reveal. \\--
-    local IntroState = 0 -- 0 = not started, 1 = splash, 2 = title pill, 3 = expanded
-    local SplashHoldTime = 2 -- hold the icon square
-    local TitlePhaseTime = 1 -- stretch into the icon+title pill
-    local TitleHoldTime = 1 -- hold the pill before the main UI appears
-    local IntroTweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-    local TitlePhaseInfo = TweenInfo.new(TitlePhaseTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-    local function ResolveLocalPosition(Pos: UDim2): Vector2
-        local Cam = workspace.CurrentCamera
-        local Vp = Cam and Cam.ViewportSize or Vector2.new(1920, 1080)
-        return Vector2.new(Pos.X.Scale * Vp.X + Pos.X.Offset, Pos.Y.Scale * Vp.Y + Pos.Y.Offset)
-    end
-
-    local function ApplySplashState()
-        local IconWidth = (WindowInfo.IconSize and WindowInfo.IconSize.X.Offset) or 30
-        local IconHeight = (WindowInfo.IconSize and WindowInfo.IconSize.Y.Offset) or 30
-        local Side = math.max(64, math.max(IconWidth, IconHeight) + 30)
-
-        --// Keep the splash centered on where the full window will end up
-        local FinalWidth = MainFrame.Size.X.Offset
-        local FinalHeight = MainFrame.Size.Y.Offset
-        local FinalPos = ResolveLocalPosition(MainFrame.Position)
-        local CenterX = FinalPos.X + FinalWidth * 0.5
-        local CenterY = FinalPos.Y + FinalHeight * 0.5
-
-        MainFrame.Size = UDim2.fromOffset(Side, Side)
-        MainFrame.Position = UDim2.fromOffset(
-            math.floor(CenterX - Side * 0.5),
-            math.floor(CenterY - Side * 0.5)
-        )
-        MainFrame.ClipsDescendants = true
-
-        --// TopBar fills the square so the icon sits dead center
-        TopBar.Size = UDim2.new(1, 0, 1, 0)
-        TitleHolder.Size = UDim2.new(1, 0, 1, 0)
-
-        --// Show only the icon; hide everything else for the splash
-        WindowTitle.Visible = false
-        WindowTitle.TextTransparency = 1
-        TagsHolder.Visible = false
-        for _, Child in TopBar:GetChildren() do
-            if Child:IsA("GuiObject") and Child ~= TitleHolder then
-                Child.Visible = false
-            end
-        end
-        DividerLine.Visible = false
-        Tabs.Visible = false
-        Container.Visible = false
-        TopDividerLine.Visible = false
-        BottomDividerLine.Visible = false
-        BottomBackground.Visible = false
-        BottomBar.Visible = false
-        if BackgroundVideoFrame then
-            BackgroundVideoFrame.Visible = false
-        end
-
-        WindowIcon.Visible = true
-
-        --// Scale the icon up a bit so it reads as an app mark, then tween back
-        WindowIcon.Size = UDim2.fromOffset(
-            math.floor(IconWidth * 1.45),
-            math.floor(IconHeight * 1.45)
-        )
-    end
-
-    --// Restore everything the splash hides, instantly and without animation.
-    --// Used as the safety net when the intro fails partway through, so the
-    --// window can never end up stuck tiny or invisible. \\--
-    local function RestoreWindowInstantly()
-        if not (MainFrame and MainFrame.Parent) then
-            return
-        end
-
-        pcall(function()
-            MainFrame.ClipsDescendants = false
-            TopBar.Size = UDim2.new(1, 0, 0, 48)
-            TitleHolder.Size = UDim2.new(0, InitialLeftWidth, 1, 0)
-            if WindowTitle then
-                WindowTitle.Visible = true
-                WindowTitle.TextTransparency = 0
-            end
-            if TagsHolder then
-                TagsHolder.Visible = not IsCompact
-            end
-            for _, Child in TopBar:GetChildren() do
-                if Child:IsA("GuiObject") and Child ~= TitleHolder then
-                    Child.Visible = true
-                end
-            end
-            DividerLine.Visible = true
-            Tabs.Visible = true
-            Container.Visible = true
-            TopDividerLine.Visible = true
-            BottomDividerLine.Visible = true
-            BottomBackground.Visible = true
-            BottomBar.Visible = true
-            if BackgroundVideoFrame then
-                BackgroundVideoFrame.Visible = true
-            end
-            if WindowIcon then
-                WindowIcon.Size = WindowInfo.IconSize
-                if not WindowInfo.Icon and not IsCompact then
-                    WindowIcon.Visible = false
-                end
-            end
-            local FullWidth = WindowInfo.Size.X.Offset
-            local FullHeight = WindowInfo.Size.Y.Offset
-            MainFrame.Size = UDim2.fromOffset(FullWidth, FullHeight)
-            if WindowInfo.Center then
-                MainFrame.Position = UDim2.new(0.5, -FullWidth / 2, 0.5, -FullHeight / 2)
-            end
-            Window:SetSidebarWidth(LastExpandedWidth)
-        end)
-    end
-
-    --// Phase 2: stretch the square sideways so the window name fades in to
-    --// the right of the icon. Keeps the square's center and height. \\--
-    local function PlayTitlePhase()
-        if not (MainFrame and MainFrame.Parent) then
-            return
-        end
-
-        local FullWidth = WindowInfo.Size.X.Offset
-        --// Constraint width 10000 = measure the natural single-line width
-        local TitleWidth = Library:GetTextBounds(WindowInfo.Title, Library.Scheme.Font, 20, 10000)
-        TitleWidth = math.max(8, math.floor(TitleWidth))
-        if WindowTitle then
-            WindowTitle.Size = UDim2.new(0, TitleWidth, 1, 0)
-        end
-
-        local Pos = ResolveLocalPosition(MainFrame.Position)
-        local Width = MainFrame.Size.X.Offset
-        local Height = MainFrame.Size.Y.Offset
-        local CenterX = Pos.X + Width * 0.5
-        local CenterY = Pos.Y + Height * 0.5
-
-        --// Pill = scaled icon + layout gap + title + side padding
-        local IconWidth = WindowIcon and WindowIcon.Size.X.Offset or 30
-        local PillWidth = math.clamp(math.floor(IconWidth + 6 + TitleWidth + 32), Width, FullWidth)
-
-        if WindowTitle then
-            WindowTitle.Visible = true
-            TweenService:Create(WindowTitle, TitlePhaseInfo, {
-                TextTransparency = 0,
-            }):Play()
-        end
-
-        TweenService:Create(MainFrame, TitlePhaseInfo, {
-            Size = UDim2.fromOffset(PillWidth, Height),
-            Position = UDim2.fromOffset(
-                math.floor(CenterX - PillWidth * 0.5),
-                math.floor(CenterY - Height * 0.5)
-            ),
-        }):Play()
-    end
-
-    local function ExpandSplash()
-        if not (MainFrame and MainFrame.Parent) then
-            return
-        end
-
-        --// Expand around the splash's current center so a drag during the
-        --// hold keeps the window where the user put it
-        local Pos = ResolveLocalPosition(MainFrame.Position)
-        local CenterX = Pos.X + MainFrame.Size.X.Offset * 0.5
-        local CenterY = Pos.Y + MainFrame.Size.Y.Offset * 0.5
-        local FullWidth = WindowInfo.Size.X.Offset
-        local FullHeight = WindowInfo.Size.Y.Offset
-
-        --// Contents slide in clipped by the growing frame
-        DividerLine.Visible = true
-        Tabs.Visible = true
-        Container.Visible = true
-        TopDividerLine.Visible = true
-        BottomDividerLine.Visible = true
-        BottomBackground.Visible = true
-        BottomBar.Visible = true
-        if BackgroundVideoFrame then
-            BackgroundVideoFrame.Visible = true
-        end
-        for _, Child in TopBar:GetChildren() do
-            if Child:IsA("GuiObject") and Child ~= TitleHolder then
-                Child.Visible = true
-            end
-        end
-        WindowTitle.Visible = true
-        WindowTitle.TextTransparency = 0
-        TagsHolder.Visible = not IsCompact
-
-        TweenService:Create(MainFrame, IntroTweenInfo, {
-            Size = UDim2.fromOffset(FullWidth, FullHeight),
-            Position = UDim2.fromOffset(
-                math.floor(CenterX - FullWidth * 0.5),
-                math.floor(CenterY - FullHeight * 0.5)
-            ),
-        }):Play()
-        TweenService:Create(TopBar, IntroTweenInfo, {
-            Size = UDim2.new(1, 0, 0, 48),
-        }):Play()
-        TweenService:Create(TitleHolder, IntroTweenInfo, {
-            Size = UDim2.new(0, InitialLeftWidth, 1, 0),
-        }):Play()
-        TweenService:Create(WindowIcon, IntroTweenInfo, {
-            Size = WindowInfo.IconSize,
-        }):Play()
-
-        task.delay(IntroTweenInfo.Time, function()
-            if not (MainFrame and MainFrame.Parent) then
-                --// Library was unloaded mid-splash; nothing left to restore
-                return
-            end
-            MainFrame.ClipsDescendants = false
-            if not WindowInfo.Icon and not IsCompact then
-                --// The no-icon fallback letter only belongs in compact mode
-                WindowIcon.Visible = false
-            end
-            --// Re-apply the sidebar layout math against the full width
-            Window:SetSidebarWidth(LastExpandedWidth)
-        end)
-    end
-
     local GuiProperties = { "BackgroundTransparency" }
     local ImageProperties = { "BackgroundTransparency", "ImageTransparency" }
     local TextProperties = { "BackgroundTransparency", "TextTransparency" }
@@ -21754,47 +21528,6 @@ function Library:CreateWindow(WindowInfo)
             Library.Toggled = Value
         else
             Library.Toggled = not Library.Toggled
-        end
-
-        --// First reveal: enter through the splash (icon-only square), then
-        --// stretch sideways for the window name, then expand the main UI.
-        --// Any failure in the intro falls back to the normal window so it
-        --// can never leave the screen empty. \\--
-        if Library.Toggled and IntroState == 0 then
-            if Minimized or (WindowInfo.AutoMinimize and WindowInfo.Minimizable) then
-                --// Window starts minimized; never play the splash later
-                IntroState = 3
-            else
-                local SplashOk, SplashErr = pcall(ApplySplashState)
-                if not SplashOk then
-                    warn("[doihi Library] Startup splash failed: " .. tostring(SplashErr) .. " -- showing the window normally")
-                    RestoreWindowInstantly()
-                    IntroState = 3
-                else
-                    IntroState = 1
-                    task.delay(SplashHoldTime, function()
-                        if IntroState ~= 1 then
-                            return
-                        end
-                        IntroState = 2
-                        local TitleOk, TitleErr = pcall(PlayTitlePhase)
-                        if not TitleOk then
-                            warn("[doihi Library] Window name reveal failed: " .. tostring(TitleErr) .. " -- skipping to the full window")
-                        end
-                        task.delay(TitlePhaseTime + TitleHoldTime, function()
-                            if IntroState ~= 2 then
-                                return
-                            end
-                            IntroState = 3
-                            local ExpandOk, ExpandErr = pcall(ExpandSplash)
-                            if not ExpandOk then
-                                warn("[doihi Library] Window expansion failed: " .. tostring(ExpandErr) .. " -- restoring the window instantly")
-                                RestoreWindowInstantly()
-                            end
-                        end)
-                    end)
-                end
-            end
         end
 
         if Library.Animations and Library.Animations.ToggleWindow == true then
