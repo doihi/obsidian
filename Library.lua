@@ -15385,19 +15385,17 @@ function Library:CreateWindow(WindowInfo)
     local SplashExpandInfo = TweenInfo.new(SplashExpandTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     --// Pixels the typed-in name starts offset to the right, before sliding left
     local SplashTextSlideOffset = 12
-    --// Optically raise the splash a little above the window/screen centre
-    local SplashVerticalNudge = 48
 
     local function SplashTargetCenter(): Vector2
         local Cam = workspace.CurrentCamera
         local Vp = Cam and Cam.ViewportSize or Vector2.new(1920, 1080)
         if WindowInfo.Center then
-            return Vector2.new(Vp.X * 0.5, Vp.Y * 0.5 - SplashVerticalNudge)
+            return Vector2.new(Vp.X * 0.5, Vp.Y * 0.5)
         end
         local Pos = WindowInfo.Position
         return Vector2.new(
             Pos.X.Scale * Vp.X + Pos.X.Offset + WindowInfo.Size.X.Offset * 0.5,
-            Pos.Y.Scale * Vp.Y + Pos.Y.Offset + WindowInfo.Size.Y.Offset * 0.5 - SplashVerticalNudge
+            Pos.Y.Scale * Vp.Y + Pos.Y.Offset + WindowInfo.Size.Y.Offset * 0.5
         )
     end
 
@@ -15488,9 +15486,10 @@ function Library:CreateWindow(WindowInfo)
         Library:MakeDraggable(SplashFrame, SplashFrame, true, true)
     end
 
-    --// Phase 2: stretch the square only to the right while the window name is
-    --// typed in character by character to the right of the icon. The left
-    --// edge never moves; the icon+title group stays horizontally centered. \\--
+    --// Phase 2: stretch the square while the window name is typed in character
+    --// by character. The pill grows symmetrically around the screen centre so
+    --// the splash stays centred the whole time; the icon+title group stays
+    --// horizontally centred inside it. \\--
     local function PlayStartupSplashTitlePhase()
         if not (SplashFrame and SplashFrame.Parent) then
             return
@@ -15508,14 +15507,18 @@ function Library:CreateWindow(WindowInfo)
 
         local Width = SplashFrame.Size.X.Offset
         local Height = SplashFrame.Size.Y.Offset
+        local LeftX = SplashFrame.Position.X.Offset
+        local TopY = SplashFrame.Position.Y.Offset
+        local CenterX = LeftX + Width * 0.5
         local IconWidth = SplashIcon and SplashIcon.Size.X.Offset or 30
         local PillWidth = math.clamp(math.floor(IconWidth + 8 + TitleWidth + 32), Width, WindowInfo.Size.X.Offset)
 
-        --// Keep the icon+title group centered in the growing pill
+        --// Grow both edges around the centre so the splash stays centred
+        local StartX = math.floor(CenterX - PillWidth * 0.5)
         local ContentW = IconWidth + 8 + TitleWidth
-        local StartX = (PillWidth - ContentW) * 0.5
-        local IconCenterX = StartX + IconWidth * 0.5
-        local TitleCenterX = StartX + IconWidth + 8 + TitleWidth * 0.5
+        local GroupStart = StartX + (PillWidth - ContentW) * 0.5
+        local IconCenterX = GroupStart + IconWidth * 0.5
+        local TitleCenterX = GroupStart + IconWidth + 8 + TitleWidth * 0.5
         local CenterY = SplashFrame.Size.Y.Offset * 0.5
 
         if SplashTitle then
@@ -15559,8 +15562,9 @@ function Library:CreateWindow(WindowInfo)
                 Position = UDim2.fromOffset(IconCenterX, CenterY),
             }):Play()
         end
-        --// Stretch only to the right; the left edge never moves
+        --// Stretch both edges around the centre so the splash stays centred
         TweenService:Create(SplashFrame, SplashTitleTweenInfo, {
+            Position = UDim2.fromOffset(StartX, TopY),
             Size = UDim2.fromOffset(PillWidth, Height),
         }):Play()
     end
