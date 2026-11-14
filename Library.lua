@@ -21493,11 +21493,11 @@ function Library:CreateWindow(WindowInfo)
 
     --// Startup splash: a dedicated, self-contained overlay. The main window
     --// itself is never resized, hidden or otherwise mutated mid-flight. It
-    --// shows an icon-only square for two seconds, stretches only to the right
-    --// over one second while the window name fades in, then one second later
-    --// grows into the exact window rect (rightwards and downwards) and swaps
-    --// directly into the real window. A failure here can never affect the
-    --// main UI. The splash inherits the window's glow/shadow while it lives. \\--
+    --// appears in the middle of the screen as an icon-only square for two
+    --// seconds, stretches only to the right over one second while the window
+    --// name fades in, then one second later grows into the exact window rect
+    --// and swaps directly into the real window. A failure here can never
+    --// affect the main UI. The splash inherits the window's glow/shadow. \\--
     local SplashState = 0 -- 0 = not started, 1 = splash playing, 3 = done
     local SplashHoldTime = 2 -- hold the icon-only square
     local SplashTitleFadeTime = 1 -- stretch into the icon+title pill
@@ -21505,6 +21505,19 @@ function Library:CreateWindow(WindowInfo)
     local SplashExpandTime = 0.8 -- expand the splash into the window rect
     local SplashTitleTweenInfo = TweenInfo.new(SplashTitleFadeTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     local SplashExpandInfo = TweenInfo.new(SplashExpandTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+    local function SplashTargetCenter(): Vector2
+        local Cam = workspace.CurrentCamera
+        local Vp = Cam and Cam.ViewportSize or Vector2.new(1920, 1080)
+        if WindowInfo.Center then
+            return Vector2.new(Vp.X * 0.5, Vp.Y * 0.5)
+        end
+        local Pos = WindowInfo.Position
+        return Vector2.new(
+            Pos.X.Scale * Vp.X + Pos.X.Offset + WindowInfo.Size.X.Offset * 0.5,
+            Pos.Y.Scale * Vp.Y + Pos.Y.Offset + WindowInfo.Size.Y.Offset * 0.5
+        )
+    end
 
     local function SplashWindowPosition(): Vector2
         local Cam = workspace.CurrentCamera
@@ -21529,17 +21542,18 @@ function Library:CreateWindow(WindowInfo)
 
         local IconPx = math.floor(math.max(WindowInfo.IconSize.X.Offset, WindowInfo.IconSize.Y.Offset) * 1.45)
         local Side = math.max(64, IconPx + 26)
-        local WindowPos = SplashWindowPosition()
+        --// The square starts in the middle; every phase then grows rightwards
+        local Center = SplashTargetCenter()
 
-        --// The square sits exactly where the window will appear, so the
-        --// whole sequence only grows rightwards and downwards
+        --// The square appears in the middle of the screen, then grows
+        --// rightwards and downwards into the window's rect
         SplashFrame = New("Frame", {
             BackgroundColor3 = function()
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, -1)
             end,
             ClipsDescendants = true,
             Name = "StartupSplash",
-            Position = UDim2.fromOffset(WindowPos.X, WindowPos.Y),
+            Position = UDim2.fromOffset(math.floor(Center.X - Side * 0.5), math.floor(Center.Y - Side * 0.5)),
             Size = UDim2.fromOffset(Side, Side),
             Parent = ScreenGui,
         })
