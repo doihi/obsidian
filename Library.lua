@@ -21647,59 +21647,170 @@ function Library:CreateWindow(WindowInfo)
         }):Play()
     end
 
-    --// Phase 3: grow the splash into the exact window rect, gliding the icon
-    --// and title to their places in the window's title bar. The left and top
-    --// edges never move. On the final frame the splash swaps directly into
-    --// the real window. \\--
+    --// Phase 3: grow the splash into the exact window rect while the real
+    --// window's contents fade and slide in underneath it in three waves. The
+    --// left and top edges never move. On the final frame the splash is
+    --// swapped directly into the real window, so the swap is invisible. \\--
     local function ExpandStartupSplashIntoWindow()
         if not (SplashFrame and SplashFrame.Parent) then
             return
         end
 
-        SplashFrame.ClipsDescendants = true
-
         local FullWidth = WindowInfo.Size.X.Offset
         local FullHeight = WindowInfo.Size.Y.Offset
         local WindowPos = SplashWindowPosition()
 
-        --// Where the icon and the title sit inside the real window's title bar
-        local InitialLeft = math.ceil(FullWidth * 0.3)
-        local IconW = WindowInfo.IconSize.X.Offset
-        local IconH = WindowInfo.IconSize.Y.Offset
-        local TitleW = SplashTitle and SplashTitle.Size.X.Offset or math.floor(#tostring(WindowInfo.Title) * 11)
-        TitleW = math.max(8, math.floor(TitleW))
-        local ContentW = IconW + 6 + TitleW
-        local StartX = math.floor((InitialLeft - ContentW) * 0.5)
-
-        TweenService:Create(SplashFrame, SplashExpandInfo, {
-            Size = UDim2.fromOffset(FullWidth, FullHeight),
-            Position = UDim2.fromOffset(WindowPos.X, WindowPos.Y),
-        }):Play()
-        if SplashIcon then
-            TweenService:Create(SplashIcon, SplashExpandInfo, {
-                Position = UDim2.fromOffset(StartX + IconW * 0.5, 24),
-                Size = UDim2.fromOffset(IconW, IconH),
-            }):Play()
+        --// Collect every visible, transparency-bearing instance inside the
+        --// window's interactive parts, keeping its original transparency
+        local Group1, Group2, Group3 = {}, {}, {}
+        local function CollectInto(Root, Target)
+            if not Root then
+                return
+            end
+            local Candidates = { Root }
+            for _, Desc in ipairs(Root:GetDescendants()) do
+                Candidates[#Candidates + 1] = Desc
+            end
+            for _, Inst in ipairs(Candidates) do
+                if Inst.Visible then
+                local Props
+                local ClassName = Inst.ClassName
+                if ClassName == "ImageLabel" or ClassName == "ImageButton" or ClassName == "VideoFrame" then
+                    Props = { "BackgroundTransparency", "ImageTransparency" }
+                elseif ClassName == "TextLabel" or ClassName == "TextBox" or ClassName == "TextButton" then
+                    Props = { "BackgroundTransparency", "TextTransparency" }
+                elseif ClassName == "UIStroke" then
+                    Props = { "Transparency" }
+                elseif Inst:IsA("GuiObject") then
+                    Props = { "BackgroundTransparency" }
+                end
+                if Props then
+                    for _, Prop in ipairs(Props) do
+                        local PropsOk, Base = pcall(function()
+                            return Inst[Prop]
+                        end)
+                        if PropsOk and typeof(Base) == "number" and Base < 1 then
+                            Target[#Target + 1] = { Instance = Inst, Prop = Prop, Base = Base }
+                        end
+                    end
+                end
+                end
+            end
         end
-        if SplashTitle then
-            TweenService:Create(SplashTitle, SplashExpandInfo, {
-                Position = UDim2.fromOffset(StartX + IconW + 6 + TitleW * 0.5, 24),
-                Size = UDim2.new(0, TitleW, 0, 48),
-            }):Play()
+
+        CollectInto(Tabs, Group1)
+        CollectInto(Container, Group2)
+        CollectInto(RightWrapper, Group3)
+        CollectInto(BottomBar, Group3)
+        CollectInto(BottomBackground, Group3)
+        CollectInto(DividerLine, Group3)
+        CollectInto(TopDividerLine, Group3)
+        CollectInto(BottomDividerLine, Group3)
+        if BackgroundVideoFrame then
+            CollectInto(BackgroundVideoFrame, Group3)
+        end
+        local AllRows = {}
+        for _, Group in ipairs({ Group1, Group2, Group3 }) do
+            for _, Row in ipairs(Group) do
+                AllRows[#AllRows + 1] = Row
+            end
         end
 
-        --// Swap directly into the real window on the final frame
-        task.delay(SplashExpandInfo.Time, function()
+        local RevealInfo = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local function RevealRows(Rows, Delay)
+            task.delay(Delay, function()
+                for _, Row in ipairs(Rows) do
+                    if Row.Instance and Row.Instance.Parent then
+                        TweenService:Create(Row.Instance, RevealInfo, { [Row.Prop] = Row.Base }):Play()
+                    end
+                end
+            end)
+        end
+
+        local ExpandOk, ExpandErr = pcall(function()
+            --// Hide everything before the window becomes visible
+            for _, Row in ipairs(AllRows) do
+                Row.Instance[Row.Prop] = 1
+            end
+            SplashFrame.ClipsDescendants = true
+
+            --// Reveal the real window behind the splash shell
             if Library.Toggled and not Minimized and MainFrame and MainFrame.Parent then
                 MainFrame.Visible = true
             end
-            SplashState = 3
-            local Frame = SplashFrame
-            SplashFrame, SplashIcon, SplashTitle, SplashStrokes = nil, nil, nil, nil
-            if Frame and Frame.Parent then
-                Frame:Destroy()
+
+            --// Where the icon and title sit inside the window's title bar
+            local InitialLeft = math.ceil(FullWidth * 0.3)
+            local IconW = WindowInfo.IconSize.X.Offset
+            local IconH = WindowInfo.IconSize.Y.Offset
+            local TitleW = SplashTitle and SplashTitle.Size.X.Offset or math.floor(#tostring(WindowInfo.Title) * 11)
+            TitleW = math.max(8, math.floor(TitleW))
+            local ContentW = IconW + 6 + TitleW
+            local StartX = math.floor((InitialLeft - ContentW) * 0.5)
+
+            --// Grow into the exact window rect
+            TweenService:Create(SplashFrame, SplashExpandInfo, {
+                Size = UDim2.fromOffset(FullWidth, FullHeight),
+                Position = UDim2.fromOffset(WindowPos.X, WindowPos.Y),
+            }):Play()
+            if SplashIcon then
+                TweenService:Create(SplashIcon, SplashExpandInfo, {
+                    Position = UDim2.fromOffset(StartX + IconW * 0.5, 24),
+                    Size = UDim2.fromOffset(IconW, IconH),
+                }):Play()
             end
+            if SplashTitle then
+                TweenService:Create(SplashTitle, SplashExpandInfo, {
+                    Position = UDim2.fromOffset(StartX + IconW + 6 + TitleW * 0.5, 24),
+                    Size = UDim2.new(0, TitleW, 0, 48),
+                }):Play()
+            end
+
+            --// The splash shell fades away over the first half of the expansion
+            if SplashStrokes then
+                for _, Stroke in ipairs(SplashStrokes) do
+                    if Stroke and Stroke.Parent then
+                        TweenService:Create(Stroke, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Transparency = 1 }):Play()
+                    end
+                end
+            end
+            task.delay(0.05, function()
+                if SplashFrame and SplashFrame.Parent then
+                    TweenService:Create(SplashFrame, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { BackgroundTransparency = 1 }):Play()
+                end
+            end)
+
+            --// Sidebar slides in from the left as the window grows
+            if Tabs and Tabs.Parent then
+                Tabs.Position = UDim2.fromOffset(-36, 49)
+                TweenService:Create(Tabs, SplashExpandInfo, {
+                    Position = UDim2.fromOffset(0, 49),
+                }):Play()
+            end
+
+            --// Contents fade in in three waves: sidebar, body, chrome
+            RevealRows(Group1, 0.10)
+            RevealRows(Group2, 0.22)
+            RevealRows(Group3, 0.34)
+
+            --// Swap directly into the window on the final frame
+            task.delay(SplashExpandInfo.Time, function()
+                SplashState = 3
+                local Frame = SplashFrame
+                SplashFrame, SplashIcon, SplashTitle, SplashStrokes = nil, nil, nil, nil
+                if Frame and Frame.Parent then
+                    Frame:Destroy()
+                end
+            end)
         end)
+
+        if not ExpandOk then
+            warn("[doihi Library] Startup splash could not expand: " .. tostring(ExpandErr) .. " -- restoring the window instantly")
+            for _, Row in ipairs(AllRows) do
+                Row.Instance[Row.Prop] = Row.Base
+            end
+            ShowStartupSplashFallback()
+        end
     end
 
     --// Instantly remove the splash without touching the real window
