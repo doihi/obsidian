@@ -21505,17 +21505,19 @@ function Library:CreateWindow(WindowInfo)
     local SplashExpandTime = 0.8 -- expand the splash into the window rect
     local SplashTitleTweenInfo = TweenInfo.new(SplashTitleFadeTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
     local SplashExpandInfo = TweenInfo.new(SplashExpandTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    --// Optically raise the splash a little above the window/screen centre
+    local SplashVerticalNudge = 48
 
     local function SplashTargetCenter(): Vector2
         local Cam = workspace.CurrentCamera
         local Vp = Cam and Cam.ViewportSize or Vector2.new(1920, 1080)
         if WindowInfo.Center then
-            return Vector2.new(Vp.X * 0.5, Vp.Y * 0.5)
+            return Vector2.new(Vp.X * 0.5, Vp.Y * 0.5 - SplashVerticalNudge)
         end
         local Pos = WindowInfo.Position
         return Vector2.new(
             Pos.X.Scale * Vp.X + Pos.X.Offset + WindowInfo.Size.X.Offset * 0.5,
-            Pos.Y.Scale * Vp.Y + Pos.Y.Offset + WindowInfo.Size.Y.Offset * 0.5
+            Pos.Y.Scale * Vp.Y + Pos.Y.Offset + WindowInfo.Size.Y.Offset * 0.5 - SplashVerticalNudge
         )
     end
 
