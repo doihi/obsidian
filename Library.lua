@@ -15496,16 +15496,23 @@ function Library:CreateWindow(WindowInfo)
     --// the splash stays centred the whole time; the icon+title group stays
     --// horizontally centred inside it. \\--
     local function PlayStartupSplashTitlePhase()
+        SplashLog("2a: entering Phase 2, SplashFrame is:", tostring(SplashFrame and SplashFrame.Parent ~= nil))
         if not (SplashFrame and SplashFrame.Parent) then
+            SplashLog("2b: SplashFrame missing, aborting")
             return
         end
+        SplashLog("2c: Icon is:", tostring(SplashIcon ~= nil), "Title label is:", tostring(SplashTitle ~= nil))
+        SplashLog("2d: WindowInfo.Title is:", tostring(WindowInfo.Title),
+            "Scheme.Font is:", tostring(Library.Scheme.Font and typeof(Library.Scheme.Font) or "nil"))
 
         --// Natural width of the title (fallback to an estimate if needed)
         local TitleWidth
         local BoundsOk, Bounds = pcall(Library.GetTextBounds, Library, WindowInfo.Title, Library.Scheme.Font, 20, 10000)
         if BoundsOk and type(Bounds) == "number" then
+            SplashLog("2e: GetTextBounds returned", tostring(Bounds))
             TitleWidth = math.floor(Bounds)
         else
+            SplashLog("2f: GetTextBounds failed (BoundsOk=" .. tostring(BoundsOk) .. " type(Bounds)=" .. tostring(type(Bounds)) .. ") falling back")
             TitleWidth = math.floor(#tostring(WindowInfo.Title) * 11)
         end
         TitleWidth = math.max(8, TitleWidth)
