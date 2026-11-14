@@ -21485,11 +21485,16 @@ function Library:CreateWindow(WindowInfo)
     end
 
     --// Startup splash: reveal the window as a small square showing only the
-    --// window icon, then stretch it horizontally (0.8s) to reveal the window
-    --// name and contents. Runs once per window, on its first reveal. \\--
-    local IntroState = 0 -- 0 = not shown yet, 1 = splash showing, 2 = expanded
-    local SplashHoldTime = 2
+    --// window icon. Two seconds later the window name fades in to the right of
+    --// the icon (the square stretches into an icon+title pill over 1s), and
+    --// one second after that the main UI expands to the full window.
+    --// Runs once per window, on its first reveal. \\--
+    local IntroState = 0 -- 0 = not started, 1 = splash, 2 = title pill, 3 = expanded
+    local SplashHoldTime = 2 -- hold the icon square
+    local TitlePhaseTime = 1 -- stretch into the icon+title pill
+    local TitleHoldTime = 1 -- hold the pill before the main UI appears
     local IntroTweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+    local TitlePhaseInfo = TweenInfo.new(TitlePhaseTime, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
     local function ResolveLocalPosition(Pos: UDim2): Vector2
         local Cam = workspace.CurrentCamera
@@ -21549,6 +21554,47 @@ function Library:CreateWindow(WindowInfo)
         )
     end
 
+    --// Phase 2: stretch the square sideways so the window name fades in to
+    --// the right of the icon. Keeps the square's center and height. \\--
+    local function PlayTitlePhase()
+        if not (MainFrame and MainFrame.Parent) then
+            return
+        end
+
+        local FullWidth = WindowInfo.Size.X.Offset
+        --// Constraint width 10000 = measure the natural single-line width
+        local TitleWidth = Library:GetTextBounds(WindowInfo.Title, Library.Scheme.Font, 20, 10000)
+        TitleWidth = math.max(8, math.floor(TitleWidth))
+        if WindowTitle then
+            WindowTitle.Size = UDim2.new(0, TitleWidth, 1, 0)
+        end
+
+        local Pos = ResolveLocalPosition(MainFrame.Position)
+        local Width = MainFrame.Size.X.Offset
+        local Height = MainFrame.Size.Y.Offset
+        local CenterX = Pos.X + Width * 0.5
+        local CenterY = Pos.Y + Height * 0.5
+
+        --// Pill = scaled icon + layout gap + title + side padding
+        local IconWidth = WindowIcon and WindowIcon.Size.X.Offset or 30
+        local PillWidth = math.clamp(math.floor(IconWidth + 6 + TitleWidth + 32), Width, FullWidth)
+
+        if WindowTitle then
+            WindowTitle.Visible = true
+            TweenService:Create(WindowTitle, TitlePhaseInfo, {
+                TextTransparency = 0,
+            }):Play()
+        end
+
+        TweenService:Create(MainFrame, TitlePhaseInfo, {
+            Size = UDim2.fromOffset(PillWidth, Height),
+            Position = UDim2.fromOffset(
+                math.floor(CenterX - PillWidth * 0.5),
+                math.floor(CenterY - Height * 0.5)
+            ),
+        }):Play()
+    end
+
     local function ExpandSplash()
         if not (MainFrame and MainFrame.Parent) then
             return
@@ -21597,17 +21643,6 @@ function Library:CreateWindow(WindowInfo)
         TweenService:Create(WindowIcon, IntroTweenInfo, {
             Size = WindowInfo.IconSize,
         }):Play()
-
-        --// Window name fades in as the frame widens
-        task.delay(0.15, function()
-            if WindowTitle and WindowTitle.Parent then
-                TweenService:Create(
-                    WindowTitle,
-                    TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                    { TextTransparency = 0 }
-                ):Play()
-            end
-        end)
 
         task.delay(IntroTweenInfo.Time, function()
             if not (MainFrame and MainFrame.Parent) then
@@ -21670,20 +21705,28 @@ function Library:CreateWindow(WindowInfo)
             Library.Toggled = not Library.Toggled
         end
 
-        --// First reveal: enter through the splash (icon-only square) and
-        --// stretch into the full window after a hold
+        --// First reveal: enter through the splash (icon-only square), then
+        --// stretch sideways for the window name, then expand the main UI
         if Library.Toggled and IntroState == 0 then
             if Minimized or (WindowInfo.AutoMinimize and WindowInfo.Minimizable) then
                 --// Window starts minimized; never play the splash later
-                IntroState = 2
+                IntroState = 3
             else
                 IntroState = 1
                 ApplySplashState()
                 task.delay(SplashHoldTime, function()
-                    if IntroState == 1 then
-                        IntroState = 2
-                        ExpandSplash()
+                    if IntroState ~= 1 then
+                        return
                     end
+                    IntroState = 2
+                    PlayTitlePhase()
+                    task.delay(TitlePhaseTime + TitleHoldTime, function()
+                        if IntroState ~= 2 then
+                            return
+                        end
+                        IntroState = 3
+                        ExpandSplash()
+                    end)
                 end)
             end
         end
