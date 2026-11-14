@@ -15519,8 +15519,11 @@ function Library:CreateWindow(WindowInfo)
             TitleWidth = math.floor(Bounds)
         else
             SplashLog("2f: GetTextBounds failed (BoundsOk=", tostring(BoundsOk), " type(Bounds)=", tostring(type(Bounds)), ") falling back")
-            local RawTitle = tostring(WindowInfo.Title)
-            SplashLog("2g: tostring(WindowInfo.Title) =", RawTitle, "# =", #RawTitle)
+            local RawTitleOk, RawTitle = pcall(tostring, WindowInfo.Title or "")
+            if not RawTitleOk or typeof(RawTitle) ~= "string" then
+                RawTitle = ""
+            end
+            SplashLog("2g: tostring result =", RawTitle, "# =", #RawTitle)
             TitleWidth = math.floor(#RawTitle * 11)
         end
         TitleWidth = math.max(8, TitleWidth)
@@ -15557,7 +15560,11 @@ function Library:CreateWindow(WindowInfo)
             }):Play()
 
             task.spawn(function()
-                local FullText = tostring(WindowInfo.Title or "")
+                SplashLog("2h: entering typewriter thread. typeof(WindowInfo.Title)=", tostring(WindowInfo.Title and typeof(WindowInfo.Title) or "nil"))
+                local FullTextOk, FullText = pcall(tostring, WindowInfo.Title or "")
+                if not FullTextOk or typeof(FullText) ~= "string" then
+                    FullText = ""
+                end
                 local Delay = math.max(0.02, math.min(0.055, (SplashTitleFadeTime * 0.85) / math.max(#FullText, 1)))
                 for Index = 1, #FullText do
                     if not (SplashTitle and SplashTitle.Parent) then
