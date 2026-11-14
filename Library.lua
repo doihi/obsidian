@@ -15362,8 +15362,8 @@ function Library:CreateWindow(WindowInfo)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
 
-    --// Startup splash overlay target; created later in the splash block and
-    --// referenced by the glow tracking so the splash inherits window glow
+    --// The startup splash (the icon-only square shown first). Self-contained:
+    --// the window's glow, shadow and contents are never tied to it
     local SplashFrame
     local SplashIcon
     local SplashTitle
@@ -17774,7 +17774,7 @@ function Library:CreateWindow(WindowInfo)
 
             --// Glow follows whichever frame is on screen — the main window, or the
             --// minimized pill when collapsed — so the accent glow stays with the UI.
-            local Target = if (MiniFrame and MiniFrame.Visible) then MiniFrame elseif SplashFrame and SplashFrame.Parent then SplashFrame else MainFrame
+            local Target = if (MiniFrame and MiniFrame.Visible) then MiniFrame else MainFrame
 
             local ShouldShow = GlowConfig.Enabled and Target.Visible and IsGuiEffectivelyVisible(Target)
             GlowImage.Visible = ShouldShow
@@ -17855,7 +17855,7 @@ function Library:CreateWindow(WindowInfo)
                 return
             end
 
-            local Target = if (MiniFrame and MiniFrame.Visible) then MiniFrame elseif SplashFrame and SplashFrame.Parent then SplashFrame else MainFrame
+            local Target = if (MiniFrame and MiniFrame.Visible) then MiniFrame else MainFrame
             local ShouldShow = ShadowConfig.Enabled and Target.Visible and Library.Toggled
             ShadowImage.Visible = ShouldShow
             if not ShouldShow then
