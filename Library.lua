@@ -17291,7 +17291,7 @@ function Library:CreateWindow(WindowInfo)
         local AvatarHolder = New("Frame", {
             AnchorPoint = Vector2.zero,
             BackgroundColor3 = "MainColor",
-            Position = UDim2.fromOffset(10, 4),
+            Position = UDim2.fromOffset(10, 2),
             Size = UDim2.fromOffset(40, 40),
             Parent = Container,
         })
@@ -17391,7 +17391,7 @@ function Library:CreateWindow(WindowInfo)
                 Info.Visible = false
             else
                 AvatarHolder.AnchorPoint = Vector2.zero
-                AvatarHolder.Position = UDim2.fromOffset(10, 4)
+                AvatarHolder.Position = UDim2.fromOffset(10, 2)
                 Info.Visible = true
             end
         end
@@ -17568,7 +17568,7 @@ function Library:CreateWindow(WindowInfo)
                 Info.Visible = false
                 LogoutButton.Visible = false
             else
-                AvatarHolder.Position = UDim2.fromOffset(10, 4)
+                AvatarHolder.Position = UDim2.fromOffset(10, 2)
                 AvatarHolder.AnchorPoint = Vector2.zero
                 Info.Visible = true
                 LogoutButton.Visible = true
