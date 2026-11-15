@@ -17247,6 +17247,16 @@ function Library:CreateWindow(WindowInfo)
         NameVisible = true,
     }
 
+    --// Strip any "@username" / "(@id)" suffix that scripts commonly append
+    local function CleanDisplayName(Name)
+        Name = tostring(Name)
+        local At = Name:find("@", 1, true)
+        if At then
+            Name = Name:sub(1, At - 1)
+        end
+        return (Name:gsub("%s+$", ""))
+    end
+
     local function EnsureUserAvatarPanel()
         if AvatarPanelRefs.Holder then
             return
@@ -17328,6 +17338,41 @@ function Library:CreateWindow(WindowInfo)
             TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = Info,
+        })
+
+        local StatusRow = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 0),
+            Parent = Info,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = UDim.new(0, 5),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Parent = StatusRow,
+        })
+        local StatusDot = New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(50, 220, 80),
+            LayoutOrder = 0,
+            Size = UDim2.fromOffset(7, 7),
+            Parent = StatusRow,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = StatusDot,
+        })
+        New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            LayoutOrder = 1,
+            Size = UDim2.fromOffset(0, 13),
+            Text = "Active",
+            TextColor3 = Color3.fromRGB(50, 220, 80),
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = StatusRow,
         })
 
         AvatarPanelRefs.Holder = Holder
@@ -17618,7 +17663,11 @@ function Library:CreateWindow(WindowInfo)
         end
 
         if Info.Name then
-            AvatarPanelRefs.OriginalName = tostring(Info.Name)
+            AvatarPanelRefs.OriginalName = CleanDisplayName(Info.Name)
+            AvatarPanelRefs.UsernameLabel.Text = AvatarPanelRefs.NameVisible and AvatarPanelRefs.OriginalName or "???"
+        elseif Info.UserId then
+            local Resolved = ResolvePlayerName(nil, tonumber(Info.UserId))
+            AvatarPanelRefs.OriginalName = CleanDisplayName(Resolved)
             AvatarPanelRefs.UsernameLabel.Text = AvatarPanelRefs.NameVisible and AvatarPanelRefs.OriginalName or "???"
         end
 
