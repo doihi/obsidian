@@ -15936,7 +15936,7 @@ function Library:CreateWindow(WindowInfo)
             TabSelectBoxTween = nil
         end
 
-        local StartPos, StartSize
+        local StartPos = nil
         if TabSelectBox.Parent and TabSelectBox.Parent ~= Holder then
             local Scale = Library.DPIScale
             if typeof(Scale) ~= "number" or Scale == 0 then
@@ -15947,10 +15947,6 @@ function Library:CreateWindow(WindowInfo)
             StartPos = UDim2.fromOffset(
                 (TabSelectBox.AbsolutePosition.X - Origin.X) / Scale,
                 (TabSelectBox.AbsolutePosition.Y - Origin.Y) / Scale
-            )
-            StartSize = UDim2.fromOffset(
-                TabSelectBox.AbsoluteSize.X / Scale,
-                TabSelectBox.AbsoluteSize.Y / Scale
             )
         end
 
@@ -16003,11 +15999,13 @@ function Library:CreateWindow(WindowInfo)
                 TabSelectBoxGlow.Size = Size
             end
         else
-            TabSelectBox.Position = StartPos
-            TabSelectBox.Size = StartSize
+            --// Snap X immediately to its final offset; the tween only animates the
+            --// Y component so the box never drifts horizontally
+            TabSelectBox.Position = UDim2.new(Pos.X.Scale, Pos.X.Offset, StartPos.Y.Scale, StartPos.Y.Offset)
+            TabSelectBox.Size = Size
             if TabSelectBoxGlow then
-                TabSelectBoxGlow.Position = StartPos
-                TabSelectBoxGlow.Size = StartSize
+                TabSelectBoxGlow.Position = TabSelectBox.Position
+                TabSelectBoxGlow.Size = Size
             end
             TabSelectBoxTween = TweenService:Create(
                 TabSelectBox,
