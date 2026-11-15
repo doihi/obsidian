@@ -15855,35 +15855,18 @@ function Library:CreateWindow(WindowInfo)
 
     local function GetTabSelectBoxRect(Icon)
         local Margin = 4
+        local IconSize = IsCompact and 22 or 18
+        local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
 
-        if Icon and Icon.Parent then
-            local Scale = GetSelectBoxScale()
-            local W = Icon.AbsoluteSize.X / Scale
-            local H = Icon.AbsoluteSize.Y / Scale
-            if W > 0 and H > 0 then
-                return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(W + Margin * 2, H + Margin * 2)
-            end
-        end
-
-        local PadTop = IsCompact and 6 or 11
-        local PadBottom = IsCompact and 6 or 11
-        local Side = 40 - PadTop - PadBottom
-        if Side <= 0 then
-            return nil, nil
-        end
-
-        return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(Side + Margin * 2, Side + Margin * 2)
+        --// Fixed layout matches the icon's own Position exactly
+        return UDim2.new(0, IconX - Margin, 0.5, 0),
+               UDim2.fromOffset(IconSize + Margin * 2, IconSize + Margin * 2)
     end
 
     local function GetTabIndicatorLeft(Icon)
-        local PadLeft = IsCompact and 6 or 12
-        local IconW = 40 - (IsCompact and 12 or 22)
-
-        if Icon and Icon.Parent and Icon.AbsoluteSize.X > 0 then
-            IconW = Icon.AbsoluteSize.X / GetSelectBoxScale()
-        end
-
-        return PadLeft + (IconW - TabButtonsStyle.IndicatorHeight) / 2
+        local IconSize = IsCompact and 22 or 18
+        local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
+        return IconX + IconSize * 0.5
     end
 
     local function HideTabSelectBox()
@@ -15924,6 +15907,7 @@ function Library:CreateWindow(WindowInfo)
 
         if not TabSelectBox then
             TabSelectBox = New("Frame", {
+                AnchorPoint = Vector2.new(0, 0.5),
                 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                 BackgroundTransparency = 1,
             })
@@ -15978,6 +15962,7 @@ function Library:CreateWindow(WindowInfo)
 
         if not TabSelectBoxGlow or not TabSelectBoxGlow.Parent then
             TabSelectBoxGlow = New("Frame", {
+                AnchorPoint = Vector2.new(0, 0.5),
                 BackgroundTransparency = 1,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
@@ -18313,12 +18298,20 @@ function Library:CreateWindow(WindowInfo)
                 continue
             end
 
+            local IconSize = IsCompact and 22 or 18
+            local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
+
             Button.Label.Visible = not IsCompact
+            Button.Icon.AnchorPoint = Vector2.new(0, 0.5)
+            Button.Icon.Position = UDim2.new(0, IconX, 0.5, 0)
+            Button.Icon.Size = UDim2.fromOffset(IconSize, IconSize)
+
+            Button.Label.Position = UDim2.fromOffset(IconX + IconSize + 6, 0)
+            Button.Label.Size = UDim2.new(1, -(IconX + IconSize + 6), 1, 0)
             Button.Padding.PaddingBottom = UDim.new(0, IsCompact and 6 or 11)
             Button.Padding.PaddingLeft = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingRight = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
-            Button.Icon.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
         end
 
         SnapTabSelectBox()
@@ -18618,10 +18611,12 @@ function Library:CreateWindow(WindowInfo)
                 PaddingTop = UDim.new(0, IsCompact and 6 or 11),
                 Parent = ButtonHolder,
             })
+            local IconSize = IsCompact and 22 or 18
+            local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(30, 0),
-                Size = UDim2.new(1, -30, 1, 0),
+                Position = UDim2.fromOffset(IconX + IconSize + 6, 0),
+                Size = UDim2.new(1, -(IconX + IconSize + 6), 1, 0),
                 Text = Name,
                 TextSize = 16,
                 TextTransparency = 0.5,
@@ -18632,12 +18627,14 @@ function Library:CreateWindow(WindowInfo)
 
             if Icon then
                 TabIcon = New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundTransparency = 1,
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
+                    Position = UDim2.new(0, IconX, 0.5, 0),
                     ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(IconSize, IconSize),
                     ZIndex = 2,
-                    Size = UDim2.fromScale(1, 1),
-                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
@@ -21108,10 +21105,12 @@ function Library:CreateWindow(WindowInfo)
                 Parent = ButtonHolder,
             })
 
+            local IconSize = IsCompact and 22 or 18
+            local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(30, 0),
-                Size = UDim2.new(1, -30, 1, 0),
+                Position = UDim2.fromOffset(IconX + IconSize + 6, 0),
+                Size = UDim2.new(1, -(IconX + IconSize + 6), 1, 0),
                 Text = Name,
                 TextSize = 16,
                 TextTransparency = 0.5,
@@ -21122,12 +21121,14 @@ function Library:CreateWindow(WindowInfo)
 
             if Icon then
                 TabIcon = New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundTransparency = 1,
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
+                    Position = UDim2.new(0, IconX, 0.5, 0),
                     ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(IconSize, IconSize),
                     ZIndex = 2,
-                    Size = UDim2.fromScale(1, 1),
-                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
