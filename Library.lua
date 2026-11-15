@@ -185,6 +185,10 @@ local Library = {
     Window = nil,
     WindowContainer = nil,
 
+    --// Window ready gate (blocks callback dispatch until the splash reveal finishes)
+    WindowReady = false,
+    SplashReadyQueue = {},
+
     --// Search \\--
     SearchText = "",
     Searching = false,
@@ -2338,6 +2342,15 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
         return
     end
 
+    --// If the reveal is still running, queue the callback instead of firing it now
+    if not Library.WindowReady then
+        local Args = table.pack(...)
+        table.insert(Library.SplashReadyQueue, function()
+            Library:SafeCallback(Func, table.unpack(Args, 1, Args.n))
+        end)
+        return nil
+    end
+
     local Result = table.pack(xpcall(Func, function(Error)
         task.defer(error, debug.traceback(Error, 2))
         if Library.NotifyOnError and Library.Notify then
@@ -2352,6 +2365,24 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
     end
 
     return table.unpack(Result, 2, Result.n)
+end
+
+--// Drain callback queue once the window reveal finishes. Called from the
+--// splash expansion timer; before that, SafeCallback defers work so the
+--// user's features don't activate until the window is ready.
+function Library:DrainSplashReadyQueue()
+    if Library.WindowReady then
+        return
+    end
+    Library.WindowReady = true
+    local Queue = Library.SplashReadyQueue
+    Library.SplashReadyQueue = {}
+    for _, Callback in ipairs(Queue) do
+        local Ok, Err = pcall(Callback)
+        if not Ok then
+            warn("[doihi Library] Deferred callback failed: " .. tostring(Err))
+        end
+    end
 end
 
 function GetOverlappingDraggable(UI: GuiObject, TargetPos: Vector2?)
@@ -15712,6 +15743,8 @@ function Library:CreateWindow(WindowInfo)
                     SplashGate:Destroy()
                 end
                 SplashGate = nil
+                --// Fire every callback that was deferred during the reveal
+                Library:DrainSplashReadyQueue()
             end)
         end)
 
@@ -15732,6 +15765,8 @@ function Library:CreateWindow(WindowInfo)
         if Frame and Frame.Parent then
             Frame:Destroy()
         end
+        --// Ensure deferred callbacks run even if the splash was dismissed early
+        Library:DrainSplashReadyQueue()
     end
 
     --// Fallback: give up on the animation and show the real window
@@ -23242,6 +23277,8 @@ Library:GiveSignal(Teams.ChildRemoved:Connect(OnTeamChange))
 
 function Library:Unload()
     Library.Unloaded = true
+    --// Drop any deferred callbacks so they don't run after the unload
+    Library.SplashReadyQueue = {}
 
     --// Disconnect connections
     for Index = #Library.Signals, 1, -1 do
