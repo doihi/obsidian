@@ -17239,8 +17239,6 @@ function Library:CreateWindow(WindowInfo)
         Holder = nil,
         Avatar = nil,
         UsernameLabel = nil,
-        StatusBadge = nil,
-        StatusLabel = nil,
         Container = nil,
         AvatarHolder = nil,
         Info = nil,
@@ -17332,39 +17330,12 @@ function Library:CreateWindow(WindowInfo)
             Parent = Info,
         })
 
-        local StatusBadge = New("Frame", {
-            AutomaticSize = Enum.AutomaticSize.X,
-            BackgroundColor3 = "AccentColor",
-            Size = UDim2.fromOffset(0, 16),
-            Parent = Info,
-        })
-        table.insert(Library.PillCorners, New("UICorner", {
-            CornerRadius = UDim.new(1, 0),
-            Parent = StatusBadge,
-        }))
-        New("UIPadding", {
-            PaddingLeft = UDim.new(0, 6),
-            PaddingRight = UDim.new(0, 6),
-            Parent = StatusBadge,
-        })
-
-        local StatusLabel = New("TextLabel", {
-            AutomaticSize = Enum.AutomaticSize.X,
-            BackgroundTransparency = 1,
-            Size = UDim2.fromOffset(0, 16),
-            Text = "FREE",
-            TextSize = 10,
-            Parent = StatusBadge,
-        })
-
         AvatarPanelRefs.Holder = Holder
         AvatarPanelRefs.Container = Container
         AvatarPanelRefs.AvatarHolder = AvatarHolder
         AvatarPanelRefs.Avatar = Avatar
         AvatarPanelRefs.Info = Info
         AvatarPanelRefs.UsernameLabel = UsernameLabel
-        AvatarPanelRefs.StatusBadge = StatusBadge
-        AvatarPanelRefs.StatusLabel = StatusLabel
 
         AvatarPanelRefs.SetCompact = function(Compact)
             local Width = Compact and WindowInfo.SidebarCompactWidth or TitleHolder.Size.X.Offset
@@ -17649,26 +17620,6 @@ function Library:CreateWindow(WindowInfo)
         if Info.Name then
             AvatarPanelRefs.OriginalName = tostring(Info.Name)
             AvatarPanelRefs.UsernameLabel.Text = AvatarPanelRefs.NameVisible and AvatarPanelRefs.OriginalName or "???"
-        end
-
-        if Info.Status then
-            local StatusText = string.upper(tostring(Info.Status))
-            AvatarPanelRefs.StatusLabel.Text = StatusText
-
-            local StatusColor = Info.StatusColor
-            if typeof(StatusColor) ~= "Color3" then
-                local Lower = string.lower(StatusText)
-                if Lower == "premium" or Lower == "vip" then
-                    StatusColor = Color3.fromRGB(255, 185, 0)
-                elseif Lower == "admin" or Lower == "owner" then
-                    StatusColor = Color3.fromRGB(255, 85, 85)
-                elseif Lower == "free" then
-                    StatusColor = Color3.fromRGB(100, 100, 100)
-                else
-                    StatusColor = Library.Scheme.AccentColor
-                end
-            end
-            AvatarPanelRefs.StatusBadge.BackgroundColor3 = StatusColor
         end
 
         return Window
@@ -18681,7 +18632,10 @@ function Library:CreateWindow(WindowInfo)
 
         TitleHolder.Size = UDim2.new(0, Width, 1, 0)
         RightWrapper.Size = UDim2.new(1, -Width - 57 - 1, 1, -16)
-        Tabs.Size = UDim2.new(0, Width, 1, -70)
+        local Reserved = 0
+        if UserProfileRefs.Holder and UserProfileRefs.Holder.Visible then Reserved = Reserved + 56 end
+        if AvatarPanelRefs.Holder and AvatarPanelRefs.Holder.Visible then Reserved = Reserved + 56 end
+        Tabs.Size = UDim2.new(0, Width, 1, -70 - Reserved)
         Container.Size = UDim2.new(1, -Width - 1, 1, -70)
 
         if WindowInfo.EnableCompacting then
