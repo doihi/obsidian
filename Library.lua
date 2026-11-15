@@ -15943,9 +15943,7 @@ function Library:CreateWindow(WindowInfo)
                 Scale = 1
             end
 
-            local PadLeft = (IsCompact and 6 or 12) * Scale
-            local PadTop = (IsCompact and 6 or 11) * Scale
-            local Origin = Holder.AbsolutePosition + Vector2.new(PadLeft, PadTop)
+            local Origin = Holder.AbsolutePosition
             StartPos = UDim2.fromOffset(
                 (TabSelectBox.AbsolutePosition.X - Origin.X) / Scale,
                 (TabSelectBox.AbsolutePosition.Y - Origin.Y) / Scale
@@ -17235,6 +17233,156 @@ function Library:CreateWindow(WindowInfo)
         NameVisible = true,
     }
 
+    --// Avatar panel: a compact-style badge at the sidebar bottom showing the
+    --// user's own avatar icon (centered in compact mode, like the title icon).
+    local AvatarPanelRefs = {
+        Holder = nil,
+        Avatar = nil,
+        UsernameLabel = nil,
+        StatusBadge = nil,
+        StatusLabel = nil,
+        Container = nil,
+        AvatarHolder = nil,
+        Info = nil,
+        SetCompact = nil,
+        OriginalName = "",
+        NameVisible = true,
+    }
+
+    local function EnsureUserAvatarPanel()
+        if AvatarPanelRefs.Holder then
+            return
+        end
+
+        local Holder = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "BackgroundColor",
+            Position = UDim2.new(0, 0, 1, -21),
+            Size = UDim2.new(0, InitialLeftWidth, 0, 56),
+            ClipsDescendants = true,
+            Visible = false,
+            ZIndex = 5,
+            Parent = MainFrame,
+        })
+        Library:MakeLine(Holder, {
+            Position = UDim2.fromOffset(8, 0),
+            Size = UDim2.new(1, -16, 0, 1),
+        })
+
+        local Container = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 8),
+            PaddingLeft = UDim.new(0, 10),
+            PaddingRight = UDim.new(0, 10),
+            PaddingTop = UDim.new(0, 8),
+            Parent = Container,
+        })
+
+        local AvatarHolder = New("Frame", {
+            AnchorPoint = Vector2.zero,
+            BackgroundColor3 = "MainColor",
+            Position = UDim2.fromOffset(10, 8),
+            Size = UDim2.fromOffset(40, 40),
+            Parent = Container,
+        })
+        table.insert(Library.PillCorners, New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = AvatarHolder,
+        }))
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Thickness = 1,
+            Parent = AvatarHolder,
+        })
+
+        local Avatar = New("ImageLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = AvatarHolder,
+        })
+        table.insert(Library.PillCorners, New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = Avatar,
+        }))
+
+        local Info = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(58, 0),
+            Size = UDim2.new(1, -58, 1, 0),
+            Parent = Container,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 2),
+            Parent = Info,
+        })
+
+        local UsernameLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 16),
+            Text = "User",
+            TextSize = 14,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Info,
+        })
+
+        local StatusBadge = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = "AccentColor",
+            Size = UDim2.fromOffset(0, 16),
+            Parent = Info,
+        })
+        table.insert(Library.PillCorners, New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = StatusBadge,
+        }))
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, 6),
+            PaddingRight = UDim.new(0, 6),
+            Parent = StatusBadge,
+        })
+
+        local StatusLabel = New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromOffset(0, 16),
+            Text = "FREE",
+            TextSize = 10,
+            Parent = StatusBadge,
+        })
+
+        AvatarPanelRefs.Holder = Holder
+        AvatarPanelRefs.Container = Container
+        AvatarPanelRefs.AvatarHolder = AvatarHolder
+        AvatarPanelRefs.Avatar = Avatar
+        AvatarPanelRefs.Info = Info
+        AvatarPanelRefs.UsernameLabel = UsernameLabel
+        AvatarPanelRefs.StatusBadge = StatusBadge
+        AvatarPanelRefs.StatusLabel = StatusLabel
+
+        AvatarPanelRefs.SetCompact = function(Compact)
+            local Width = Compact and WindowInfo.SidebarCompactWidth or TitleHolder.Size.X.Offset
+            Holder.Size = UDim2.new(0, Width, 0, 56)
+
+            if Compact then
+                --// Same layout as the compact title icon: centered avatar only
+                AvatarHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+                AvatarHolder.Position = UDim2.new(0.5, 0, 0.5, 0)
+                Info.Visible = false
+            else
+                AvatarHolder.AnchorPoint = Vector2.zero
+                AvatarHolder.Position = UDim2.fromOffset(10, 8)
+                Info.Visible = true
+            end
+        end
+    end
+
     local function EnsureUserProfile()
         if UserProfileRefs.Holder then
             return
@@ -17462,7 +17610,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         local Width = TitleHolder.Size.X.Offset
-        Tabs.Size = UDim2.new(0, Width, 1, -70 - 56)
+        RefreshTabsForPanels()
 
         return Window
     end
@@ -17472,10 +17620,80 @@ function Library:CreateWindow(WindowInfo)
     function Window:HideUserProfile()
         if UserProfileRefs.Holder then
             UserProfileRefs.Holder.Visible = false
-            local Width = TitleHolder.Size.X.Offset
-            Tabs.Size = UDim2.new(0, Width, 1, -70)
         end
+        RefreshTabsForPanels()
         return Window
+    end
+
+    --// Bottom avatar panel: avatar + name (expanded) / centered avatar (compact).
+    --// Separate from SetUserProfile so scripts can opt in.
+    function Window:SetUserAvatar(Info)
+        Info = Info or {}
+        EnsureUserAvatarPanel()
+
+        AvatarPanelRefs.Holder.Visible = true
+        if AvatarPanelRefs.SetCompact then
+            AvatarPanelRefs.SetCompact(IsCompact)
+        end
+        RefreshTabsForPanels()
+
+        if Info.UserId then
+            AvatarPanelRefs.Avatar.Image = string.format(
+                "https://www.roblox.com/headshot-thumbnail/image?userId=%s&width=150&height=150&format=png",
+                tostring(Info.UserId)
+            )
+        elseif Info.Avatar then
+            AvatarPanelRefs.Avatar.Image = tostring(Info.Avatar)
+        end
+
+        if Info.Name then
+            AvatarPanelRefs.OriginalName = tostring(Info.Name)
+            AvatarPanelRefs.UsernameLabel.Text = AvatarPanelRefs.NameVisible and AvatarPanelRefs.OriginalName or "???"
+        end
+
+        if Info.Status then
+            local StatusText = string.upper(tostring(Info.Status))
+            AvatarPanelRefs.StatusLabel.Text = StatusText
+
+            local StatusColor = Info.StatusColor
+            if typeof(StatusColor) ~= "Color3" then
+                local Lower = string.lower(StatusText)
+                if Lower == "premium" or Lower == "vip" then
+                    StatusColor = Color3.fromRGB(255, 185, 0)
+                elseif Lower == "admin" or Lower == "owner" then
+                    StatusColor = Color3.fromRGB(255, 85, 85)
+                elseif Lower == "free" then
+                    StatusColor = Color3.fromRGB(100, 100, 100)
+                else
+                    StatusColor = Library.Scheme.AccentColor
+                end
+            end
+            AvatarPanelRefs.StatusBadge.BackgroundColor3 = StatusColor
+        end
+
+        return Window
+    end
+
+    Window.AddUserAvatar = Window.SetUserAvatar
+
+    function Window:HideUserAvatar()
+        if AvatarPanelRefs.Holder then
+            AvatarPanelRefs.Holder.Visible = false
+        end
+        RefreshTabsForPanels()
+        return Window
+    end
+
+    local function RefreshTabsForPanels()
+        local Width = TitleHolder.Size.X.Offset
+        local Reserved = 0
+        if UserProfileRefs.Holder and UserProfileRefs.Holder.Visible then
+            Reserved = Reserved + 56
+        end
+        if AvatarPanelRefs.Holder and AvatarPanelRefs.Holder.Visible then
+            Reserved = Reserved + 56
+        end
+        Tabs.Size = UDim2.new(0, Width, 1, -70 - Reserved)
     end
 
     local function SetUICorner(UICorner, Corner, HalfValue)
@@ -18312,6 +18530,14 @@ function Library:CreateWindow(WindowInfo)
             Button.Padding.PaddingLeft = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingRight = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
+        end
+
+        --// Keep bottom panels (user profile, avatar panel) in sync with compact mode
+        if UserProfileRefs.SetCompact then
+            UserProfileRefs.SetCompact(IsCompact)
+        end
+        if AvatarPanelRefs.SetCompact then
+            AvatarPanelRefs.SetCompact(IsCompact)
         end
 
         SnapTabSelectBox()
