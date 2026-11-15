@@ -15393,6 +15393,10 @@ function Library:CreateWindow(WindowInfo)
         end
         print("[splash] " .. table.concat(parts, " "))
     end
+    --// Gate frame covering the real window during the reveal. Blocks every
+    --// pointer click on the window's UI (toggles, tabs, buttons, ...) until
+    --// the expansion animation finishes.
+    local SplashGate
     --// Pixels the typed-in name starts offset to the right, before sliding left
     local SplashTextSlideOffset = 12
     --// Vertically lift the splash a little above the optical
@@ -15646,6 +15650,18 @@ function Library:CreateWindow(WindowInfo)
             MainFrame.Position = UDim2.fromOffset(StartX, StartY)
             MainFrame.Visible = true
 
+            --// Block pointer input into the expanding window; released
+            --// when the reveal finishes
+            SplashGate = New("TextButton", {
+                Active = true,
+                BackgroundTransparency = 1,
+                Name = "SplashGate",
+                ZIndex = 100000,
+                Size = UDim2.fromScale(1, 1),
+                Text = "",
+                Parent = MainFrame,
+            })
+
             --// The real window supplies its own icon and title; the splash's
             --// are hidden instantly so they never draw on top of the real
             --// ones (no afterimage). The clip hides the handoff entirely.
@@ -15691,6 +15707,11 @@ function Library:CreateWindow(WindowInfo)
                     return
                 end
                 MainFrame.ClipsDescendants = false
+                --// Re-enable input on the window now that the reveal is over
+                if SplashGate and SplashGate.Parent then
+                    SplashGate:Destroy()
+                end
+                SplashGate = nil
             end)
         end)
 
@@ -21931,6 +21952,11 @@ function Library:CreateWindow(WindowInfo)
 
     function Window:Toggle(Value: boolean?)
         if Fading then
+            return
+        end
+
+        --// Window is still expanding; ignore hotkey toggles until reveal finishes
+        if SplashState == 1 then
             return
         end
 
