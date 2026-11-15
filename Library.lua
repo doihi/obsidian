@@ -17291,7 +17291,7 @@ function Library:CreateWindow(WindowInfo)
         local AvatarHolder = New("Frame", {
             AnchorPoint = Vector2.zero,
             BackgroundColor3 = "MainColor",
-            Position = UDim2.fromOffset(10, 8),
+            Position = UDim2.fromOffset(10, 4),
             Size = UDim2.fromOffset(40, 40),
             Parent = Container,
         })
@@ -17386,12 +17386,12 @@ function Library:CreateWindow(WindowInfo)
 
             if Compact then
                 --// Same layout as the compact title icon: centered avatar only
-                AvatarHolder.AnchorPoint = Vector2.new(0.5, 0.5)
                 AvatarHolder.Position = UDim2.new(0.5, 0, 0.5, 0)
+                AvatarHolder.AnchorPoint = Vector2.new(0.5, 0.5)
                 Info.Visible = false
             else
                 AvatarHolder.AnchorPoint = Vector2.zero
-                AvatarHolder.Position = UDim2.fromOffset(10, 8)
+                AvatarHolder.Position = UDim2.fromOffset(10, 4)
                 Info.Visible = true
             end
         end
@@ -17568,7 +17568,7 @@ function Library:CreateWindow(WindowInfo)
                 Info.Visible = false
                 LogoutButton.Visible = false
             else
-                AvatarHolder.Position = UDim2.fromOffset(10, 8)
+                AvatarHolder.Position = UDim2.fromOffset(10, 4)
                 AvatarHolder.AnchorPoint = Vector2.zero
                 Info.Visible = true
                 LogoutButton.Visible = true
