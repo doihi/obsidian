@@ -2244,7 +2244,7 @@ end
 
 local OnlineFetchIcons, OnlineIcons = pcall(function()
     return (loadstring(
-        game:HttpGet("https://raw.githubusercontent.com/mstudio45/lucide-roblox-direct/refs/heads/main/source.lua")
+        game:HttpGet("https://raw.githubusercontent.com/notpoiu/lucide-roblox-direct/refs/heads/main/source.lua")
     ) :: () -> IconModule)()
 end)
 if OnlineFetchIcons and OnlineIcons then
@@ -15855,35 +15855,18 @@ function Library:CreateWindow(WindowInfo)
 
     local function GetTabSelectBoxRect(Icon)
         local Margin = 4
+        local IconSize = IsCompact and 22 or 18
+        local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
 
-        if Icon and Icon.Parent then
-            local Scale = GetSelectBoxScale()
-            local W = Icon.AbsoluteSize.X / Scale
-            local H = Icon.AbsoluteSize.Y / Scale
-            if W > 0 and H > 0 then
-                return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(W + Margin * 2, H + Margin * 2)
-            end
-        end
-
-        local PadTop = IsCompact and 6 or 11
-        local PadBottom = IsCompact and 6 or 11
-        local Side = 40 - PadTop - PadBottom
-        if Side <= 0 then
-            return nil, nil
-        end
-
-        return UDim2.fromOffset(-Margin, -Margin), UDim2.fromOffset(Side + Margin * 2, Side + Margin * 2)
+        --// Fixed layout matches the icon's own Position exactly
+        return UDim2.new(0, IconX - Margin, 0.5, 0),
+               UDim2.fromOffset(IconSize + Margin * 2, IconSize + Margin * 2)
     end
 
     local function GetTabIndicatorLeft(Icon)
-        local PadLeft = IsCompact and 6 or 12
-        local IconW = 40 - (IsCompact and 12 or 22)
-
-        if Icon and Icon.Parent and Icon.AbsoluteSize.X > 0 then
-            IconW = Icon.AbsoluteSize.X / GetSelectBoxScale()
-        end
-
-        return PadLeft + (IconW - TabButtonsStyle.IndicatorHeight) / 2
+        local IconSize = IsCompact and 22 or 18
+        local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
+        return IconX + IconSize * 0.5
     end
 
     local function HideTabSelectBox()
@@ -15924,6 +15907,7 @@ function Library:CreateWindow(WindowInfo)
 
         if not TabSelectBox then
             TabSelectBox = New("Frame", {
+                AnchorPoint = Vector2.new(0, 0.5),
                 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                 BackgroundTransparency = 1,
             })
@@ -15952,23 +15936,17 @@ function Library:CreateWindow(WindowInfo)
             TabSelectBoxTween = nil
         end
 
-        local StartPos, StartSize
+        local StartPos = nil
         if TabSelectBox.Parent and TabSelectBox.Parent ~= Holder then
             local Scale = Library.DPIScale
             if typeof(Scale) ~= "number" or Scale == 0 then
                 Scale = 1
             end
 
-            local PadLeft = (IsCompact and 6 or 12) * Scale
-            local PadTop = (IsCompact and 6 or 11) * Scale
-            local Origin = Holder.AbsolutePosition + Vector2.new(PadLeft, PadTop)
+            local Origin = Holder.AbsolutePosition
             StartPos = UDim2.fromOffset(
                 (TabSelectBox.AbsolutePosition.X - Origin.X) / Scale,
                 (TabSelectBox.AbsolutePosition.Y - Origin.Y) / Scale
-            )
-            StartSize = UDim2.fromOffset(
-                TabSelectBox.AbsoluteSize.X / Scale,
-                TabSelectBox.AbsoluteSize.Y / Scale
             )
         end
 
@@ -15978,6 +15956,7 @@ function Library:CreateWindow(WindowInfo)
 
         if not TabSelectBoxGlow or not TabSelectBoxGlow.Parent then
             TabSelectBoxGlow = New("Frame", {
+                AnchorPoint = Vector2.new(0, 0.5),
                 BackgroundTransparency = 1,
                 Visible = false,
                 ZIndex = TabSelectBox.ZIndex - 1,
@@ -16020,11 +15999,13 @@ function Library:CreateWindow(WindowInfo)
                 TabSelectBoxGlow.Size = Size
             end
         else
-            TabSelectBox.Position = StartPos
-            TabSelectBox.Size = StartSize
+            --// Snap X immediately to its final offset; the tween only animates the
+            --// Y component so the box never drifts horizontally
+            TabSelectBox.Position = UDim2.new(Pos.X.Scale, Pos.X.Offset, StartPos.Y.Scale, StartPos.Y.Offset)
+            TabSelectBox.Size = Size
             if TabSelectBoxGlow then
-                TabSelectBoxGlow.Position = StartPos
-                TabSelectBoxGlow.Size = StartSize
+                TabSelectBoxGlow.Position = TabSelectBox.Position
+                TabSelectBoxGlow.Size = Size
             end
             TabSelectBoxTween = TweenService:Create(
                 TabSelectBox,
@@ -17250,6 +17231,172 @@ function Library:CreateWindow(WindowInfo)
         NameVisible = true,
     }
 
+    --// Avatar panel: a compact-style badge at the sidebar bottom showing the
+    --// user's own avatar icon (centered in compact mode, like the title icon).
+    local AvatarPanelRefs = {
+        Holder = nil,
+        Avatar = nil,
+        UsernameLabel = nil,
+        Container = nil,
+        AvatarHolder = nil,
+        Info = nil,
+        SetCompact = nil,
+        OriginalName = "",
+        NameVisible = true,
+    }
+
+    --// Strip any "@username" / "(@id)" suffix that scripts commonly append
+    local function CleanDisplayName(Name)
+        Name = tostring(Name)
+        local At = Name:find("@", 1, true)
+        if At then
+            Name = Name:sub(1, At - 1)
+        end
+        return (Name:gsub("%s+$", ""))
+    end
+
+    local function EnsureUserAvatarPanel()
+        if AvatarPanelRefs.Holder then
+            return
+        end
+
+        local Holder = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundColor3 = "BackgroundColor",
+            Position = UDim2.new(0, 0, 1, -21),
+            Size = UDim2.new(0, InitialLeftWidth, 0, 56),
+            ClipsDescendants = true,
+            Visible = false,
+            ZIndex = 5,
+            Parent = MainFrame,
+        })
+        Library:MakeLine(Holder, {
+            Position = UDim2.fromOffset(8, 0),
+            Size = UDim2.new(1, -16, 0, 1),
+        })
+
+        local Container = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = Holder,
+        })
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 8),
+            PaddingLeft = UDim.new(0, 10),
+            PaddingRight = UDim.new(0, 10),
+            PaddingTop = UDim.new(0, 8),
+            Parent = Container,
+        })
+
+        local AvatarHolder = New("Frame", {
+            AnchorPoint = Vector2.zero,
+            BackgroundColor3 = "MainColor",
+            Position = UDim2.fromOffset(10, 2),
+            Size = UDim2.fromOffset(40, 40),
+            Parent = Container,
+        })
+        table.insert(Library.PillCorners, New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = AvatarHolder,
+        }))
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Thickness = 1,
+            Parent = AvatarHolder,
+        })
+
+        local Avatar = New("ImageLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = AvatarHolder,
+        })
+        table.insert(Library.PillCorners, New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = Avatar,
+        }))
+
+        local Info = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(58, 0),
+            Size = UDim2.new(1, -58, 1, 0),
+            Parent = Container,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 2),
+            Parent = Info,
+        })
+
+        local UsernameLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 16),
+            Text = "User",
+            TextSize = 14,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Info,
+        })
+
+        local StatusRow = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 0),
+            Parent = Info,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = UDim.new(0, 5),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Parent = StatusRow,
+        })
+        local StatusDot = New("Frame", {
+            BackgroundColor3 = Color3.fromRGB(50, 220, 80),
+            LayoutOrder = 0,
+            Size = UDim2.fromOffset(7, 7),
+            Parent = StatusRow,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = StatusDot,
+        })
+        New("TextLabel", {
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            LayoutOrder = 1,
+            Size = UDim2.fromOffset(0, 13),
+            Text = "Active",
+            TextColor3 = Color3.fromRGB(50, 220, 80),
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = StatusRow,
+        })
+
+        AvatarPanelRefs.Holder = Holder
+        AvatarPanelRefs.Container = Container
+        AvatarPanelRefs.AvatarHolder = AvatarHolder
+        AvatarPanelRefs.Avatar = Avatar
+        AvatarPanelRefs.Info = Info
+        AvatarPanelRefs.UsernameLabel = UsernameLabel
+
+        AvatarPanelRefs.SetCompact = function(Compact)
+            local Width = Compact and WindowInfo.SidebarCompactWidth or TitleHolder.Size.X.Offset
+            Holder.Size = UDim2.new(0, Width, 0, 56)
+
+            if Compact then
+                --// Same layout as the compact title icon: centered avatar only
+                AvatarHolder.Position = UDim2.new(0.5, 0, 0.5, 0)
+                AvatarHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+                Info.Visible = false
+            else
+                AvatarHolder.AnchorPoint = Vector2.zero
+                AvatarHolder.Position = UDim2.fromOffset(10, 2)
+                Info.Visible = true
+            end
+        end
+    end
+
     local function EnsureUserProfile()
         if UserProfileRefs.Holder then
             return
@@ -17421,7 +17568,7 @@ function Library:CreateWindow(WindowInfo)
                 Info.Visible = false
                 LogoutButton.Visible = false
             else
-                AvatarHolder.Position = UDim2.fromOffset(10, 8)
+                AvatarHolder.Position = UDim2.fromOffset(10, 2)
                 AvatarHolder.AnchorPoint = Vector2.zero
                 Info.Visible = true
                 LogoutButton.Visible = true
@@ -17477,7 +17624,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         local Width = TitleHolder.Size.X.Offset
-        Tabs.Size = UDim2.new(0, Width, 1, -70 - 56)
+        RefreshTabsForPanels()
 
         return Window
     end
@@ -17487,10 +17634,64 @@ function Library:CreateWindow(WindowInfo)
     function Window:HideUserProfile()
         if UserProfileRefs.Holder then
             UserProfileRefs.Holder.Visible = false
-            local Width = TitleHolder.Size.X.Offset
-            Tabs.Size = UDim2.new(0, Width, 1, -70)
         end
+        RefreshTabsForPanels()
         return Window
+    end
+
+    --// Bottom avatar panel: avatar + name (expanded) / centered avatar (compact).
+    --// Separate from SetUserProfile so scripts can opt in.
+    function Window:SetUserAvatar(Info)
+        Info = Info or {}
+        EnsureUserAvatarPanel()
+
+        AvatarPanelRefs.Holder.Visible = true
+        if AvatarPanelRefs.SetCompact then
+            AvatarPanelRefs.SetCompact(IsCompact)
+        end
+        RefreshTabsForPanels()
+
+        if Info.UserId then
+            AvatarPanelRefs.Avatar.Image = string.format(
+                "https://www.roblox.com/headshot-thumbnail/image?userId=%s&width=150&height=150&format=png",
+                tostring(Info.UserId)
+            )
+        elseif Info.Avatar then
+            AvatarPanelRefs.Avatar.Image = tostring(Info.Avatar)
+        end
+
+        if Info.Name then
+            AvatarPanelRefs.OriginalName = CleanDisplayName(Info.Name)
+            AvatarPanelRefs.UsernameLabel.Text = AvatarPanelRefs.NameVisible and AvatarPanelRefs.OriginalName or "???"
+        elseif Info.UserId then
+            local Resolved = ResolvePlayerName(nil, tonumber(Info.UserId))
+            AvatarPanelRefs.OriginalName = CleanDisplayName(Resolved)
+            AvatarPanelRefs.UsernameLabel.Text = AvatarPanelRefs.NameVisible and AvatarPanelRefs.OriginalName or "???"
+        end
+
+        return Window
+    end
+
+    Window.AddUserAvatar = Window.SetUserAvatar
+
+    function Window:HideUserAvatar()
+        if AvatarPanelRefs.Holder then
+            AvatarPanelRefs.Holder.Visible = false
+        end
+        RefreshTabsForPanels()
+        return Window
+    end
+
+    local function RefreshTabsForPanels()
+        local Width = TitleHolder.Size.X.Offset
+        local Reserved = 0
+        if UserProfileRefs.Holder and UserProfileRefs.Holder.Visible then
+            Reserved = Reserved + 56
+        end
+        if AvatarPanelRefs.Holder and AvatarPanelRefs.Holder.Visible then
+            Reserved = Reserved + 56
+        end
+        Tabs.Size = UDim2.new(0, Width, 1, -70 - Reserved)
     end
 
     local function SetUICorner(UICorner, Corner, HalfValue)
@@ -18313,12 +18514,28 @@ function Library:CreateWindow(WindowInfo)
                 continue
             end
 
+            local IconSize = IsCompact and 22 or 18
+            local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
+
             Button.Label.Visible = not IsCompact
+            Button.Icon.AnchorPoint = Vector2.new(0, 0.5)
+            Button.Icon.Position = UDim2.new(0, IconX, 0.5, 0)
+            Button.Icon.Size = UDim2.fromOffset(IconSize, IconSize)
+
+            Button.Label.Position = UDim2.fromOffset(IconX + IconSize + 6, 0)
+            Button.Label.Size = UDim2.new(1, -(IconX + IconSize + 6), 1, 0)
             Button.Padding.PaddingBottom = UDim.new(0, IsCompact and 6 or 11)
             Button.Padding.PaddingLeft = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingRight = UDim.new(0, IsCompact and 6 or 12)
             Button.Padding.PaddingTop = UDim.new(0, IsCompact and 6 or 11)
-            Button.Icon.SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY
+        end
+
+        --// Keep bottom panels (user profile, avatar panel) in sync with compact mode
+        if UserProfileRefs.SetCompact then
+            UserProfileRefs.SetCompact(IsCompact)
+        end
+        if AvatarPanelRefs.SetCompact then
+            AvatarPanelRefs.SetCompact(IsCompact)
         end
 
         SnapTabSelectBox()
@@ -18462,7 +18679,10 @@ function Library:CreateWindow(WindowInfo)
 
         TitleHolder.Size = UDim2.new(0, Width, 1, 0)
         RightWrapper.Size = UDim2.new(1, -Width - 57 - 1, 1, -16)
-        Tabs.Size = UDim2.new(0, Width, 1, -70)
+        local Reserved = 0
+        if UserProfileRefs.Holder and UserProfileRefs.Holder.Visible then Reserved = Reserved + 56 end
+        if AvatarPanelRefs.Holder and AvatarPanelRefs.Holder.Visible then Reserved = Reserved + 56 end
+        Tabs.Size = UDim2.new(0, Width, 1, -70 - Reserved)
         Container.Size = UDim2.new(1, -Width - 1, 1, -70)
 
         if WindowInfo.EnableCompacting then
@@ -18618,10 +18838,12 @@ function Library:CreateWindow(WindowInfo)
                 PaddingTop = UDim.new(0, IsCompact and 6 or 11),
                 Parent = ButtonHolder,
             })
+            local IconSize = IsCompact and 22 or 18
+            local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(30, 0),
-                Size = UDim2.new(1, -30, 1, 0),
+                Position = UDim2.fromOffset(IconX + IconSize + 6, 0),
+                Size = UDim2.new(1, -(IconX + IconSize + 6), 1, 0),
                 Text = Name,
                 TextSize = 16,
                 TextTransparency = 0.5,
@@ -18632,12 +18854,14 @@ function Library:CreateWindow(WindowInfo)
 
             if Icon then
                 TabIcon = New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundTransparency = 1,
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
+                    Position = UDim2.new(0, IconX, 0.5, 0),
                     ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(IconSize, IconSize),
                     ZIndex = 2,
-                    Size = UDim2.fromScale(1, 1),
-                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
@@ -21108,10 +21332,12 @@ function Library:CreateWindow(WindowInfo)
                 Parent = ButtonHolder,
             })
 
+            local IconSize = IsCompact and 22 or 18
+            local IconX = IsCompact and (40 - IconSize) * 0.5 or 11
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(30, 0),
-                Size = UDim2.new(1, -30, 1, 0),
+                Position = UDim2.fromOffset(IconX + IconSize + 6, 0),
+                Size = UDim2.new(1, -(IconX + IconSize + 6), 1, 0),
                 Text = Name,
                 TextSize = 16,
                 TextTransparency = 0.5,
@@ -21122,12 +21348,14 @@ function Library:CreateWindow(WindowInfo)
 
             if Icon then
                 TabIcon = New("ImageLabel", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundTransparency = 1,
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
+                    Position = UDim2.new(0, IconX, 0.5, 0),
                     ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromOffset(IconSize, IconSize),
                     ZIndex = 2,
-                    Size = UDim2.fromScale(1, 1),
-                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
